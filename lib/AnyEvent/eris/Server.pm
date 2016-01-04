@@ -23,7 +23,7 @@ my $CLIENT_ID = 1;
 sub _server_error {
     my ( $self, $err_str ) = @_;
     my $err_num = $err_str+0;
-    debug( "SERVER ERROR:, $err_num, $err_str" );
+    AE::log debug => "SERVER ERROR: $err_num, $err_str";
 
     if ( $err_num == 98 ) {
         undef $self->{'_cv'};
@@ -100,14 +100,12 @@ sub new {
         my $handle; $handle = AnyEvent::Handle->new(
             fh       => $fh,
             on_error => sub {
-                print STDERR "HI 1!\n";
                 $inner_self->_server_error( $_[2] );
                 $_[0]->destroy;
             },
 
             on_eof => sub {
                 my ($hdl) = @_;
-                print STDERR "HI 2!\n";
                 $inner_self->hangup_client("$hdl");
                 $hdl->destroy;
             },
