@@ -8,7 +8,6 @@ my $c = tcp_connect $addr, $port, sub {
 
     my $hdl; $hdl = AnyEvent::Handle->new(
         fh       => $fh,
-        on_connect => sub { print STDERR "Connected!\n" },
         on_error => sub { AE::log error => $_[2]; $_[0]->destroy },
         on_eof   => sub { $hdl->destroy; AE::log info => 'Done.' },
         on_read  => sub {
