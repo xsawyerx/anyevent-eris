@@ -146,26 +146,28 @@ sub new {
                 $hdl->destroy;
                 AE::log debug => "SERVER, client $SID disconnected.";
             },
+
+            # POE handler: client_input
+            on_read => sub {
+                my ($hdl) = @_;
+                chomp( my $line = delete $hdl->{'rbuf'} );
+                my $SID = $inner_self->_gen_session_id($hdl);
+
+                foreach my $command ( keys %client_commands ) {
+                    my $regex = $client_commands{$command};
+                    if ( my ($args) = ( $line =~ /$regex/i ) ) {
+                        my $method = "handle_$command";
+                        return $inner_self->$method( $hdl, $SID, $args );
+                    }
+                }
+
+                $hdl->push_write("UNKNOWN COMMAND, Ignored.\015\012");
+            },
         );
 
         my $SID = $self->_gen_session_id($handle);
         $handle->push_write("EHLO Streamer (KERNEL: $$:$SID)\n");
         $inner_self->register_client( $SID, $handle );
-
-        # POE handler: client_input
-        $handle->push_read( line => sub {
-            my ( $hdl, $line ) = @_;
-
-            foreach my $command ( keys %client_commands ) {
-                my $regex = $client_commands{$command};
-                if ( my ($args) = ( $line =~ /$regex/i ) ) {
-                    my $method = "handle_$command";
-                    return $inner_self->$method( $hdl, $SID, $args );
-                }
-            }
-
-            $hdl->push_write("UNKNOWN COMMAND, Ignored.\015\012");
-        });
     };
 
     return $self;
