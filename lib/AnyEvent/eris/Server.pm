@@ -81,8 +81,30 @@ sub handle_unsubscribe {
     );
 }
 
-sub handle_fullfeed {}
-sub handle_nofullfeed {}
+sub handle_fullfeed {
+    my ( $self, $handle, $SID ) = @_;
+
+    $self->remove_all_streams($SID);
+
+    # FIXME: keep this inside the SID heap
+    # FIXME: this does not add it anywhere to the streams heap
+    $self->{'_full'}{$SID} = 1;
+    $handle->push_write(
+        "Full feed enabled, all other functions disabled.\n"
+    );
+}
+
+sub handle_nofullfeed {
+    my ( $self, $handle, $SID ) = @_;
+
+    $self->remove_all_streams($SID);
+
+    # XXX: Not in original implementation
+    delete $self->{'_full'}{$SID};
+
+    $handle->push_write("Full feed disabled.\n");
+}
+
 sub handle_match {}
 sub handle_nomatch {}
 sub handle_debug {}
