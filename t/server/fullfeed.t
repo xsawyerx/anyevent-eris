@@ -18,20 +18,20 @@ my $c = tcp_connect $addr, $port, sub {
                 $hdl->push_write("fullfeed\n");
 
                 is(
-                    scalar keys %{ $server->{'_full'} },
+                    scalar keys %{ $server->{'full'} },
                     0,
                     'No clients have fullfeed',
                 );
             } elsif ( $line =~ /^Full feed enabled/ ) {
                 is(
-                    scalar keys %{ $server->{'_full'} },
+                    scalar keys %{ $server->{'full'} },
                     1,
                     'A single client has fullfeed',
                 );
 
-                my $key = ( keys %{ $server->{'_full'} } )[0];
+                my $key = ( keys %{ $server->{'full'} } )[0];
                 is(
-                    $server->{'_full'}{$key},
+                    $server->{'full'}{$key},
                     1,
                     "$key registered for fullfeed true",
                 );
@@ -39,7 +39,7 @@ my $c = tcp_connect $addr, $port, sub {
                 $hdl->push_write("nofullfeed\n");
             } elsif ( $line =~ /^Full feed disabled/ ) {
                 is(
-                    scalar keys %{ $server->{'_full'} },
+                    scalar keys %{ $server->{'full'} },
                     0,
                     'No more clients registered for fullfeed',
                 );
@@ -52,8 +52,5 @@ my $c = tcp_connect $addr, $port, sub {
 };
 
 is( $server->run($cv), 'OK', 'Server closed' );
-
-is( $server->{'subscribers'}, undef, 'Subscribers cleared' );
-is( $server->{'programs'},    undef, 'Programs cleared'    );
 
 done_testing;

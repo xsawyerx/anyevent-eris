@@ -50,10 +50,10 @@ sub handle_subscribe {
     my @programs = map lc, split /[\s,]+/, $args;
     foreach my $program (@programs) {
         # FIXME: add this to the SID heap instead
-        $self->{'_subscribers'}{$SID}{$program} = 1;
+        $self->{'subscribers'}{$SID}{$program} = 1;
 
         # number of registered programs
-        $self->{'_programs'}{$program}++;
+        $self->{'programs'}{$program}++;
     }
 
     $handle->push_write(
@@ -68,11 +68,13 @@ sub handle_unsubscribe {
 
     my @programs = map lc, split /[\s,]+/, $args;
     foreach my $program (@programs) {
-        delete $self->{'_subscribers'}{$SID}{$program};
-        $self->{'_programs'}{$program}--;
-        delete $self->{'_programs'}{$program}
-            unless $self->{'_programs'}{$program} > 0;
+        delete $self->{'subscribers'}{$SID}{$program};
+        $self->{'programs'}{$program}--;
+        delete $self->{'programs'}{$program}
+            unless $self->{'programs'}{$program} > 0;
     }
+
+    delete $self->{'subscribers'}{$SID};
 
     $handle->push_write(
         'Subscription removed for : ' .
@@ -88,7 +90,7 @@ sub handle_fullfeed {
 
     # FIXME: keep this inside the SID heap
     # FIXME: this does not add it anywhere to the streams heap
-    $self->{'_full'}{$SID} = 1;
+    $self->{'full'}{$SID} = 1;
     $handle->push_write(
         "Full feed enabled, all other functions disabled.\n"
     );
@@ -100,7 +102,7 @@ sub handle_nofullfeed {
     $self->remove_all_streams($SID);
 
     # XXX: Not in original implementation
-    delete $self->{'_full'}{$SID};
+    delete $self->{'full'}{$SID};
 
     $handle->push_write("Full feed disabled.\n");
 }
@@ -112,10 +114,10 @@ sub handle_match {
 
     my @words = map lc, split /[\s,]+/, $args;
     foreach my $word (@words) {
-        $self->{'_words'}{$word}++;
+        $self->{'words'}{$word}++;
 
         # FIXME: keep this inside the SID heap
-        $self->{'_match'}{$SID}{$word} = 1;
+        $self->{'match'}{$SID}{$word} = 1;
     }
 
     $handle->push_write(
@@ -130,12 +132,12 @@ sub handle_nomatch {
 
     my @words = map lc, split /[\s,]+/, $args;
     foreach my $word (@words) {
-        delete $self->{'_match'}{$SID}{$word};
+        delete $self->{'match'}{$SID}{$word};
 
         # Remove the word from searching if this was the last client
-        $self->{'_words'}{$word}--;
-        delete $self->{'_words'}{$word}
-            unless $self->{'_words'}{$word} > 0;
+        $self->{'words'}{$word}--;
+        delete $self->{'words'}{$word}
+            unless $self->{'words'}{$word} > 0;
     }
 
     $handle->push_write(
@@ -150,7 +152,7 @@ sub handle_debug {
 
     $self->remove_stream( $SID, 'full' );
 
-    $self->{'_debug'}{$SID} = 1;
+    $self->{'debug'}{$SID} = 1;
     $handle->push_write("Debugging enabled.\n");
 }
 
@@ -158,14 +160,14 @@ sub handle_nobug {
     my ( $self, $handle, $SID ) = @_;
 
     $self->remove_stream( $SID, 'debug' );
-    delete $self->{'_debug'}{$SID};
+    delete $self->{'debug'}{$SID};
     $handle->push_write("Debugging disabled.\n");
 }
 
 sub handle_regex {
     my ( $self, $handle, $SID, $args ) = @_;
 
-    $self->{'_full'}{$SID}
+    $self->{'full'}{$SID}
         and return;
 
     my $regex;
@@ -183,7 +185,7 @@ sub handle_regex {
         return;
     };
 
-    $self->{'_regex'}{$SID}{$regex} = 1;
+    $self->{'regex'}{$SID}{$regex} = 1;
     $handle->push_write(
         "Receiving messages matching regex : $args\n"
     );
@@ -193,7 +195,7 @@ sub handle_noregex {
     my ( $self, $handle, $SID ) = @_;
 
     $self->remove_stream( $SID, 'regex' );
-    delete $self->{'_regex'}{$SID};
+    delete $self->{'regex'}{$SID};
     $handle->push_write("No longer receiving regex-based matches\n");
 }
 
@@ -204,7 +206,7 @@ sub handle_quit {}
 sub hangup_client {
     my ( $self, $SID ) = @_;
     delete $self->clients->{$SID};
-    delete $self->{'_buffers'}{$SID};
+    delete $self->{'buffers'}{$SID};
     $self->remove_all_streams($SID);
     AE::log debug => "Client Termination Posted: $SID";
 }
@@ -213,7 +215,7 @@ sub remove_stream {
     my ( $self, $SID, $stream ) = @_;
     AE::log debug => "Removing '$stream' for $SID";
 
-    my $client_streams = delete $self->{'_streams'}{$stream}{$SID};
+    my $client_streams = delete $self->{'streams'}{$stream}{$SID};
 
     # FIXME:
     # I *think* what this is supposed to do is delete assists
@@ -223,8 +225,8 @@ sub remove_stream {
     if ($client_streams) {
         if ( my $assist = $_STREAM_ASSISTERS{$stream} ) {
             foreach my $key ( keys %{$client_streams} ) {
-                --$self->{'_assists'}{$assist}{$key} <= 0
-                    and delete $self->{'_assists'}{$assist}{$key}
+                --$self->{'assists'}{$assist}{$key} <= 0
+                    and delete $self->{'assists'}{$assist}{$key}
             }
         }
     }
@@ -313,7 +315,7 @@ sub register_client {
     my ( $self, $SID, $handle ) = @_;
 
     # FIXME: put buffers in the client hash instead
-    $self->{'_buffers'}{$SID} = [];
+    $self->{'buffers'}{$SID} = [];
 
     $self->clients->{$SID} = {
         handle => $handle,

@@ -14,7 +14,7 @@ my $c = tcp_connect $addr, $port, sub {
             my ($hdl) = @_;
             chomp( my $line = delete $hdl->{'rbuf'} );
 
-            my $regex = $server->{'_regex'};
+            my $regex = $server->{'regex'};
             if ( $line =~ /^EHLO/ ) {
                 $hdl->push_write("regex .+\n");
 
@@ -55,8 +55,5 @@ my $c = tcp_connect $addr, $port, sub {
 };
 
 is( $server->run($cv), 'OK', 'Server closed' );
-
-is( $server->{'subscribers'}, undef, 'Subscribers cleared' );
-is( $server->{'programs'},    undef, 'Programs cleared'    );
 
 done_testing;

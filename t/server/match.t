@@ -14,8 +14,8 @@ my $c = tcp_connect $addr, $port, sub {
             my ($hdl) = @_;
             chomp( my $line = delete $hdl->{'rbuf'} );
 
-            my $words   = $server->{'_words'};
-            my $matches = $server->{'_match'};
+            my $words   = $server->{'words'};
+            my $matches = $server->{'match'};
             if ( $line =~ /^EHLO/ ) {
                 $hdl->push_write("match hello, world\n");
 
@@ -68,8 +68,5 @@ my $c = tcp_connect $addr, $port, sub {
 };
 
 is( $server->run($cv), 'OK', 'Server closed' );
-
-is( $server->{'subscribers'}, undef, 'Subscribers cleared' );
-is( $server->{'programs'},    undef, 'Programs cleared'    );
 
 done_testing;

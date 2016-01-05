@@ -20,7 +20,7 @@ my $c = tcp_connect $addr, $port, sub {
                 );
 
                 is(
-                    scalar keys %{ $server->{'_subscribers'} },
+                    scalar keys %{ $server->{'subscribers'} },
                     0,
                     'No clients subscribed',
                 );
@@ -32,7 +32,7 @@ my $c = tcp_connect $addr, $port, sub {
                 );
 
                 is(
-                    scalar keys %{ $server->{'_subscribers'} },
+                    scalar keys %{ $server->{'subscribers'} },
                     1,
                     'A single client subscribed',
                 );
@@ -49,7 +49,7 @@ my $c = tcp_connect $addr, $port, sub {
 
 is( $server->run($cv), 'OK', 'Server closed' );
 
-is( $server->{'subscribers'}, undef, 'Subscribers cleared' );
-is( $server->{'programs'},    undef, 'Programs cleared'    );
+is_deeply( $server->{'subscribers'}, {}, 'Subscribers cleared' );
+is_deeply( $server->{'programs'},    {}, 'Programs cleared'    );
 
 done_testing;
