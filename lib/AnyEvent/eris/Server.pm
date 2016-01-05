@@ -133,16 +133,14 @@ sub new {
         $inner_self->register_client( $SID, $handle );
 
         # POE handler: client_input
-        $handle->push_read( sub {
-            my ($hdl) = @_;
-            my $input = $hdl->rbuf
-                or return;
+        $handle->push_read( line => sub {
+            my ( $hdl, $line ) = @_;
 
             foreach my $command ( keys %client_commands ) {
                 my $regex = $client_commands{$command};
-                if ( my ($args) = ( $input =~ /$regex/i ) ) {
+                if ( my ($args) = ( $line =~ /$regex/i ) ) {
                     my $method = "handle_$command";
-                    return $inner_self->$method($args);
+                    return $inner_self->$method( $hdl, $SID, $args );
                 }
             }
 
