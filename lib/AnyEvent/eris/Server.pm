@@ -199,7 +199,33 @@ sub handle_noregex {
     $handle->push_write("No longer receiving regex-based matches\n");
 }
 
-sub handle_status {}
+sub handle_status {
+    my ( $self, $handle, $SID ) = @_;
+    my $cnt = scalar( keys %{ $self->clients } );
+
+    my @details = ();
+    foreach my $stream (@_STREAM_NAMES) {
+        if ( exists $self->{$stream} && ref $self->{$stream} eq 'HASH' ) {
+            my $cnt    = keys %{ $self->{$stream} };
+            my $assist = 0;
+
+            exists $_STREAM_ASSISTERS{$stream}            &&
+            exists $self->{ $_STREAM_ASSISTERS{$stream} } &&
+            ref $self->{ $_STREAM_ASSISTERS{$stream} } eq 'HASH'
+                and $assist = scalar keys %{ $self->{ $_STREAM_ASSISTERS{$stream} } };
+
+            next if $cnt <= 0 && $assist <= 0;
+            my $det = "$stream=$cnt";
+            $det .= ":$assist" if $assist > 0;
+
+            push @details, $det;
+        }
+    }
+
+    my $details = join ', ', @details;
+    $handle->push_write("STATUS[0]: $cnt connections: $details\n");
+}
+
 sub handle_dump {}
 sub handle_quit {}
 
