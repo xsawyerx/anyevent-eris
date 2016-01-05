@@ -45,6 +45,8 @@ my %client_commands = (
 sub handle_subscribe {
     my ( $self, $handle, $SID, $args ) = @_;
 
+    $self->remove_stream( $SID, 'full' );
+
     my @programs = map lc, split /[\s,]+/, $args;
     foreach my $program (@programs) {
         # FIXME: add this to the SID heap instead
