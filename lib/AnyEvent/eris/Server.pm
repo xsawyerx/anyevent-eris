@@ -130,7 +130,7 @@ sub new {
 
         my $SID = $self->_gen_session_id($handle);
         $handle->push_write("EHLO Streamer (KERNEL: $$:$SID)\n");
-        $inner_self->register_client($SID);
+        $inner_self->register_client( $SID, $handle );
 
         # POE handler: client_input
         $handle->push_read( sub {
@@ -165,9 +165,14 @@ sub clients {
 }
 
 sub register_client {
-    my ( $self, $SID ) = @_;
-    $self->clients->{$SID}    = {};
+    my ( $self, $SID, $handle ) = @_;
+
+    # FIXME: put buffers in the client hash instead
     $self->{'_buffers'}{$SID} = [];
+
+    $self->clients->{$SID} = {
+        handle => $handle,
+    };
 }
 
 sub _gen_session_id {
