@@ -83,10 +83,10 @@ sub remove_all_streams {
 sub new {
     my $class = shift;
     my $self  = bless {
-        ListenAddress   => '127.0.0.1', # "localhost" doesn't work :/
-        ListenPort      => 9514,
-        GraphitePort    => 2003,
-        GraphitePrefix  => 'eris.dispatcher',
+        ListenAddress  => '127.0.0.1', # "localhost" doesn't work :/
+        ListenPort     => 9514,
+        GraphitePort   => 2003,
+        GraphitePrefix => 'eris.dispatcher',
         @_,
     }, $class;
 
