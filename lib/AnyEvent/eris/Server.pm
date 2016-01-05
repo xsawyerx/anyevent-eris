@@ -104,7 +104,7 @@ sub new {
 
             on_eof => sub {
                 my ($hdl) = @_;
-                my $SID = $self->_gen_session_id($hdl);
+                my $SID = $inner_self->_gen_session_id($hdl);
                 $inner_self->hangup_client($SID);
                 $hdl->destroy;
                 AE::log debug => "SERVER, client $SID disconnected.";
