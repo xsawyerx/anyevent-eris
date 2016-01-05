@@ -2,3 +2,5 @@
   such as "fullfeed".
 * Clear "buffers" and "clients"
 * Normalize all heap keys (constants?)
+* Test in tests incorrect input for all registrations (regexp, for example)
+* Test in code more registrations (where args are available, like in regexp)
