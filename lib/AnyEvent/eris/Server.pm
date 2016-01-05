@@ -145,8 +145,23 @@ sub handle_nomatch {
     );
 }
 
-sub handle_debug {}
-sub handle_nobug {}
+sub handle_debug {
+    my ( $self, $handle, $SID ) = @_;
+
+    $self->remove_stream( $SID, 'full' );
+
+    $self->{'_debug'}{$SID} = 1;
+    $handle->push_write("Debugging enabled.\n");
+}
+
+sub handle_nobug {
+    my ( $self, $handle, $SID ) = @_;
+
+    $self->remove_stream( $SID, 'debug' );
+    delete $self->{'_debug'}{$SID};
+    $handle->push_write("Debugging disabled.\n");
+}
+
 sub handle_regex {}
 sub handle_noregex {}
 sub handle_status {}
