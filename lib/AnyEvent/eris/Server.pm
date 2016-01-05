@@ -18,8 +18,6 @@ my %_PRE = (
     program => qr/\s+\d+:\d+:\d+\s+\S+\s+([^:\s]+)(:|\s)/,
 );
 
-my $CLIENT_ID = 1;
-
 sub _server_error {
     my ( $self, $err_str ) = @_;
     my $err_num = $err_str+0;
@@ -61,22 +59,22 @@ sub handle_dump {}
 sub handle_quit {}
 
 sub hangup_client {
-    my ( $self, $id ) = @_;
-    delete $self->clients->{$id};
-    delete $self->{'_buffers'}{$id};
-    $self->remove_all_streams($id);
-    AE::log debug => "Client Termination Posted: $id";
+    my ( $self, $SID ) = @_;
+    delete $self->clients->{$SID};
+    delete $self->{'_buffers'}{$SID};
+    $self->remove_all_streams($SID);
+    AE::log debug => "Client Termination Posted: $SID";
 }
 
 sub remove_stream {
-    my ( $self, $id, $stream ) = @_;
-    AE::log debug => "Removing '$stream' for $id";
+    my ( $self, $SID, $stream ) = @_;
+    AE::log debug => "Removing '$stream' for $SID";
 }
 
 sub remove_all_streams {
-    my ( $self, $id ) = @_;
+    my ( $self, $SID ) = @_;
     foreach my $stream (@_STREAM_NAMES) {
-        $self->remove_stream( $id, $stream );
+        $self->remove_stream( $SID, $stream );
     }
 }
 
@@ -97,7 +95,6 @@ sub new {
         my ($fh) = @_
            or return $inner_self->_server_error($!);
 
-        $CLIENT_ID++;
         my $handle; $handle = AnyEvent::Handle->new(
             fh       => $fh,
             on_error => sub {
@@ -107,21 +104,16 @@ sub new {
 
             on_eof => sub {
                 my ($hdl) = @_;
-                $inner_self->hangup_client("$hdl");
+                my $SID = $self->_gen_session_id($hdl);
+                $inner_self->hangup_client($SID);
                 $hdl->destroy;
-                AE::log debug => "SERVER, client $CLIENT_ID disconnected.";
+                AE::log debug => "SERVER, client $SID disconnected.";
             },
         );
 
-        $handle->push_write("EHLO Streamer (KERNEL: $$:$CLIENT_ID)\n");
-        $inner_self->register_client("$_[0]");
-
-        # XXX use $CLIENT_ID instead?
-        # XXX $heap->{'client'} seems like another heap
-        #     no point in having two, i think
-        # $heap->{'clients'}{$SID} = $heap->{'client'}
-
-        $inner_self->{'clients'}{$handle} = {};
+        my $SID = $self->_gen_session_id($handle);
+        $handle->push_write("EHLO Streamer (KERNEL: $$:$SID)\n");
+        $inner_self->register_client($SID);
 
         # POE handler: client_input
         $handle->push_read( sub {
@@ -156,8 +148,16 @@ sub clients {
 }
 
 sub register_client {
-    my ( $self, $id ) = @_;
-    $self->{'_buffers'}{$id} = [];
+    my ( $self, $SID ) = @_;
+    $self->clients->{$SID}    = {};
+    $self->{'_buffers'}{$SID} = [];
+}
+
+sub _gen_session_id {
+    my ( $self, $handle ) = @_;
+    # AnyEvent::Handle=HASH(0x1bb30f0)
+    "$handle" =~ /\D0x([a-fA-F0-9]+)/;
+    return $1;
 }
 
 1;

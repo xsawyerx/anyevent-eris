@@ -17,8 +17,8 @@ my $c = tcp_connect $addr, $port, sub {
             chomp( my $line = $hdl->rbuf );
 
             my $KID = $$;
-            $line =~ /^EHLO Streamer \(KERNEL: $KID:(\d+)\)$/;
-            my $SID = $2 || '(undef)';
+            $line =~ /^EHLO Streamer \(KERNEL: $KID:(.+)\)$/;
+            my $SID = $1 || '(undef)';
 
             ok( $KID && $SID, "Got a nice hello (KID: $KID, SID: $SID)" );
             $cv->send('OK');
