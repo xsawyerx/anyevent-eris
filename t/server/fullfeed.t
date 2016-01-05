@@ -17,11 +17,11 @@ my $c = tcp_connect $addr, $port, sub {
             if ( $line =~ /^EHLO/ ) {
                 $hdl->push_write("fullfeed\n");
 
-                #is(
-                #    scalar keys %{ $server->{'_subscribers'} },
-                #    0,
-                #    'No clients subscribed',
-                #);
+                is(
+                    scalar keys %{ $server->{'_full'} },
+                    0,
+                    'No clients have fullfeed',
+                );
             } elsif ( $line =~ /^Full feed enabled/ ) {
                 is(
                     scalar keys %{ $server->{'_full'} },
