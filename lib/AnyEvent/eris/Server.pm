@@ -42,9 +42,27 @@ my %client_commands = (
     quit        => qr{(exit|q(uit)?)},
 );
 
+sub handle_subscribe {
+    my ( $self, $handle, $SID, $args ) = @_;
+
+    my @programs = map lc, split /[\s,]+/, $args;
+    foreach my $program (@programs) {
+        # FIXME: add this to the SID heap instead
+        $self->{'_subscribers'}{$SID}{$program} = 1;
+
+        # number of registered programs
+        $self->{'_programs'}{$program}++;
+    }
+
+    $handle->push_write(
+        'Subscribed to : '     .
+        join( ',', @programs ) .
+        "\n"
+    );
+}
+
 sub handle_fullfeed {}
 sub handle_nofullfeed {}
-sub handle_subscribe {}
 sub handle_unsubscribe {}
 sub handle_match {}
 sub handle_nomatch {}
