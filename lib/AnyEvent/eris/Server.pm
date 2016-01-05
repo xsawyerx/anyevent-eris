@@ -162,8 +162,41 @@ sub handle_nobug {
     $handle->push_write("Debugging disabled.\n");
 }
 
-sub handle_regex {}
-sub handle_noregex {}
+sub handle_regex {
+    my ( $self, $handle, $SID, $args ) = @_;
+
+    $self->{'_full'}{$SID}
+        and return;
+
+    my $regex;
+    eval {
+        defined $args && length $args
+            and $regex = qr{$args};
+        1;
+    } or do {
+        my $error = $@ || 'Zombie error';
+
+        $handle->push_write(
+            "Invalid regular expression '$args', see: perldoc perlre\n"
+        );
+
+        return;
+    };
+
+    $self->{'_regex'}{$SID}{$regex} = 1;
+    $handle->push_write(
+        "Receiving messages matching regex : $args\n"
+    );
+}
+
+sub handle_noregex {
+    my ( $self, $handle, $SID ) = @_;
+
+    $self->remove_stream( $SID, 'regex' );
+    delete $self->{'_regex'}{$SID};
+    $handle->push_write("No longer receiving regex-based matches\n");
+}
+
 sub handle_status {}
 sub handle_dump {}
 sub handle_quit {}
