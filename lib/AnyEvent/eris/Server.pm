@@ -105,8 +105,46 @@ sub handle_nofullfeed {
     $handle->push_write("Full feed disabled.\n");
 }
 
-sub handle_match {}
-sub handle_nomatch {}
+sub handle_match {
+    my ( $self, $handle, $SID, $args ) = @_;
+
+    $self->remove_stream( $SID, 'full' );
+
+    my @words = map lc, split /[\s,]+/, $args;
+    foreach my $word (@words) {
+        $self->{'_words'}{$word}++;
+
+        # FIXME: keep this inside the SID heap
+        $self->{'_match'}{$SID}{$word} = 1;
+    }
+
+    $handle->push_write(
+        'Receiving messages matching : ' .
+        join( ', ', @words )             .
+        "\n"
+    );
+}
+
+sub handle_nomatch {
+    my ( $self, $handle, $SID, $args ) = @_;
+
+    my @words = map lc, split /[\s,]+/, $args;
+    foreach my $word (@words) {
+        delete $self->{'_match'}{$SID}{$word};
+
+        # Remove the word from searching if this was the last client
+        $self->{'_words'}{$word}--;
+        delete $self->{'_words'}{$word}
+            unless $self->{'_words'}{$word} > 0;
+    }
+
+    $handle->push_write(
+        'No longer receiving messages matching : ' .
+        join( ', ', @words )                       .
+        "\n"
+    );
+}
+
 sub handle_debug {}
 sub handle_nobug {}
 sub handle_regex {}
