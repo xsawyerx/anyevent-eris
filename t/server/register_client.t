@@ -16,8 +16,8 @@ my $c = tcp_connect $addr, $port, sub {
 
             chomp( my $line = $hdl->rbuf );
 
-            $line =~ /^EHLO Streamer \(KERNEL: (\d+):(\d+)\)$/;
-            my $KID = $1 || '(undef)';
+            my $KID = $$;
+            $line =~ /^EHLO Streamer \(KERNEL: $KID:(\d+)\)$/;
             my $SID = $2 || '(undef)';
 
             ok( $KID && $SID, "Got a nice hello (KID: $KID, SID: $SID)" );
@@ -27,5 +27,23 @@ my $c = tcp_connect $addr, $port, sub {
 };
 
 is( $server->run($cv), 'OK', 'Server closed' );
+
+my %clients = %{ $server->{'clients'} || {} };
+is( scalar keys %clients, 1, 'One client registered' );
+
+my $key = $clients{ (keys %clients)[0] };
+
+can_ok( $server, 'clients' );
+is(
+    scalar keys %{ $server->clients },
+    1,
+    'Also one client registered through attribute',
+);
+
+is(
+    $clients{$key},
+    $server->clients->{$key},
+    'Same attribute',
+);
 
 done_testing;

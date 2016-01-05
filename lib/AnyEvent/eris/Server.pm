@@ -62,7 +62,7 @@ sub handle_quit {}
 
 sub hangup_client {
     my ( $self, $id ) = @_;
-    delete $self->{'_clients'}{$id};
+    delete $self->clients->{$id};
     delete $self->{'_buffers'}{$id};
     $self->remove_all_streams($id);
 }
@@ -148,9 +148,13 @@ sub run {
     $self->{'_cv'}->recv;
 }
 
+sub clients {
+    my $self = shift;
+    $self->{'clients'} ||= {};
+}
+
 sub register_client {
     my ( $self, $id ) = @_;
-    $self->{'_clients'}{$id} = 1;
     $self->{'_buffers'}{$id} = [];
 }
 
