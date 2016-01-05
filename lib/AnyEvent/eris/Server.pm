@@ -19,13 +19,11 @@ my %_PRE = (
 );
 
 sub _server_error {
-    my ( $self, $err_str ) = @_;
-    my $err_num = $err_str+0;
+    my ( $self, $err_str, $fatal ) = @_;
+    my $err_num = $!+0;
     AE::log debug => "SERVER ERROR: $err_num, $err_str";
 
-    if ( $err_num == 98 ) {
-        undef $self->{'_cv'};
-    }
+    $fatal and $self->{'_cv'}->send;
 }
 
 my %client_commands = (
@@ -98,8 +96,11 @@ sub new {
         my $handle; $handle = AnyEvent::Handle->new(
             fh       => $fh,
             on_error => sub {
-                $inner_self->_server_error( $_[2] );
-                $_[0]->destroy;
+                my ( $hdl, $fatal, $msg ) = @_;
+                my $SID = $inner_self->_gen_session_id($hdl);
+                $inner_self->hangup_client($SID);
+                $inner_self->_server_error( $msg, $fatal );
+                $hdl->destroy;
             },
 
             on_eof => sub {
