@@ -63,9 +63,26 @@ sub handle_subscribe {
     );
 }
 
+sub handle_unsubscribe {
+    my ( $self, $handle, $SID, $args ) = @_;
+
+    my @programs = map lc, split /[\s,]+/, $args;
+    foreach my $program (@programs) {
+        delete $self->{'_subscribers'}{$SID}{$program};
+        $self->{'_programs'}{$program}--;
+        delete $self->{'_programs'}{$program}
+            unless $self->{'_programs'}{$program} > 0;
+    }
+
+    $handle->push_write(
+        'Subscription removed for : ' .
+        join( ',', @programs )        .
+        "\n"
+    );
+}
+
 sub handle_fullfeed {}
 sub handle_nofullfeed {}
-sub handle_unsubscribe {}
 sub handle_match {}
 sub handle_nomatch {}
 sub handle_debug {}
