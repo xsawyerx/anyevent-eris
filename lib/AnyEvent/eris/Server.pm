@@ -109,6 +109,7 @@ sub new {
                 my ($hdl) = @_;
                 $inner_self->hangup_client("$hdl");
                 $hdl->destroy;
+                AE::log debug => "SERVER, client $CLIENT_ID disconnected.";
             },
         );
 
