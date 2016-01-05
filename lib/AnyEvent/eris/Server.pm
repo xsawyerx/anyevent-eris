@@ -65,7 +65,7 @@ sub hangup_client {
     delete $self->clients->{$id};
     delete $self->{'_buffers'}{$id};
     $self->remove_all_streams($id);
-    AE::log "Client Termination Posted: $id";
+    AE::log debug => "Client Termination Posted: $id";
 }
 
 sub remove_stream {
