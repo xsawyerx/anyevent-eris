@@ -67,6 +67,22 @@ sub hangup_client {
 sub remove_stream {
     my ( $self, $SID, $stream ) = @_;
     AE::log debug => "Removing '$stream' for $SID";
+
+    my $client_streams = delete $self->{'_streams'}{$stream}{$SID};
+
+    # FIXME:
+    # I *think* what this is supposed to do is delete assists
+    # that were registered for this client, which it doesn't
+    # - it deletes global assists instead - this needs to be
+    # looked into
+    if ($client_streams) {
+        if ( my $assist = $_STREAM_ASSISTERS{$stream} ) {
+            foreach my $key ( keys %{$client_streams} ) {
+                --$self->{'_assists'}{$assist}{$key} <= 0
+                    and delete $self->{'_assists'}{$assist}{$key}
+            }
+        }
+    }
 }
 
 sub remove_all_streams {
