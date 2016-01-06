@@ -281,8 +281,9 @@ sub handle_dump {
     }
 }
 
-
-sub handle_quit {1} # unimplemented yet
+# unimplemented yet
+# FIXME: this should all user session data
+sub handle_quit {1}
 
 sub hangup_client {
     my ( $self, $SID ) = @_;
