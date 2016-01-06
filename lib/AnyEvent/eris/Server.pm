@@ -226,8 +226,63 @@ sub handle_status {
     $handle->push_write("STATUS[0]: $cnt connections: $details\n");
 }
 
-sub handle_dump {}
-sub handle_quit {}
+sub handle_dump {
+    my ( $self, $handle, $SID, $type ) = @_;
+
+    my %dispatch = (
+        assisters => sub {
+            my @details = ();
+            foreach my $asst ( values %_STREAM_ASSISTERS ) {
+                exists $self->{$asst} &&
+                ref $self->{$asst} eq 'HASH'
+                    and push @details,
+                        "$asst -> " . join ',', keys %{ $self->{$asst} };
+            }
+
+            return @details;
+        },
+
+        stats => sub {
+            my @details = map +(
+                "$_ -> $self->{'stats'}{$_}"
+            ), keys %{ $self->{'stats'} };
+
+            return @details;
+        },
+
+        streams => sub {
+            my @details = ();
+
+            foreach my $str (@_STREAM_NAMES) {
+                exists $self->{$str} &&
+                ref    $self->{$str} eq 'HASH'
+                    or next;
+
+                my @sids = ();
+                foreach my $sid ( keys %{ $self->{$str} } ) {
+                    push @sids, ref $self->{$str}{$sid} eq 'HASH'
+                        ? "$sid:" . join ',', keys %{ $self->{$str}{$sid} }
+                        : $sid;
+                }
+
+                push @details, "$str -> " . join '; ', @sids;
+            }
+
+            return @details;
+        },
+    );
+
+    if ( my $cb = $dispatch{$type} ) {
+        my @msgs = $cb->();
+        my $msgs = join( "\n", @msgs ) . "\n";
+        $handle->push_write($msgs);
+    } else {
+        $handle->push_write("DUMP[-1]: No comprende.\n");
+    }
+}
+
+
+sub handle_quit {1} # unimplemented yet
 
 sub hangup_client {
     my ( $self, $SID ) = @_;
