@@ -379,7 +379,45 @@ sub new {
         $inner_self->register_client( $SID, $handle );
     };
 
+    $self->{'_flush_timer'} = AE::timer 0.1, 0.1, sub {
+        $self->flush_client;
+    };
+
+    # Stream Storage
+    # and
+    # Assistance
+    $self->{$_} = {}
+        for @_STREAM_NAMES, values %_STREAM_ASSISTERS;
+
+    # Output buffering
+    $self->{'buffers'} = {};
+
+    # Statistics Tracking
+    $self->{'config'}{'GraphiteHost'}
+        and $self->graphite_connect;
+
+    $self->{'_stats_timer'} = AE::timer 0, 60, sub {
+        $self->stats;
+    };
+
     return $self;
+}
+
+sub flush_client {
+    my $self = shift;
+
+    foreach my $SID ( keys %{ $self->{'buffers'} } ) {
+        my $msgs = $self->{'buffers'}{$SID};
+
+        @{$msgs} > 0
+            or next;
+
+        # write the messages to the SID
+        my $msgs_str = join "\n", @{$msgs};
+        $self->clients->{$SID}{'handle'}->push_write("$msgs_str\n");
+
+        $self->{'buffers'}{$SID} = [];
+    }
 }
 
 sub run {
