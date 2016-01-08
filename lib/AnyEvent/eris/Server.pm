@@ -281,9 +281,12 @@ sub handle_dump {
     }
 }
 
-# unimplemented yet
 # FIXME: this should all user session data
-sub handle_quit {1}
+sub handle_quit {
+    my ( $self, $handle, $SID ) = @_;
+    $handle->push_write('Terminating connection on your request.');
+    $self->{'_cv'}->send;
+}
 
 sub hangup_client {
     my ( $self, $SID ) = @_;
@@ -322,12 +325,14 @@ sub remove_all_streams {
 }
 
 sub new {
-    my $class = shift;
-    my $self  = bless {
+    my $class    = shift;
+    my $hostname = ( split '.', hostname )[0];
+    my $self     = bless {
         ListenAddress  => '127.0.0.1', # "localhost" doesn't work :/
         ListenPort     => 9514,
         GraphitePort   => 2003,
         GraphitePrefix => 'eris.dispatcher',
+        hostname       => $hostname,
         @_,
     }, $class;
 
