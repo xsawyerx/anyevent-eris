@@ -1,5 +1,6 @@
 use t::lib::Eris::Test;
 
+my ( $registered_fullfeed, $msg_arrived );
 my ( $server, $cv ) = new_server;
 my ( $addr, $port ) = @{$server}{qw<ListenAddress ListenPort>};
 my $SID = '';
@@ -19,21 +20,22 @@ my $c = tcp_connect $addr, $port, sub {
                 ($SID) = $line =~ /\(KERNEL:\s\d+:([a-fA-F0-9]+)\)/;
                 $hdl->push_write("fullfeed\n");
             } elsif ( $line =~ /^Full feed enabled/ ) {
-                $hdl->push_write("dump streams\n");
+                $registered_fullfeed++;
             } else {
-                is(
-                    $line,
-                    "subscribers -> \nmatch -> \ndebug -> \n" .
-                    "full -> $SID\n" .
-                    "regex -> ",
-                    'Correct dump output'
-                );
+                $msg_arrived++;
                 $cv->send('OK');
             }
         },
     );
 };
 
+my $timer; $timer = AE::timer 0.05, 0, sub {
+    undef $timer;
+    $server->dispatch_message('Hello world');
+};
+
 is( $server->run($cv), 'OK', 'Server closed' );
+is( $registered_fullfeed, 1, 'Fullfeed registered' );
+is( $msg_arrived, 1, 'Message arrived (msg dispatching)' );
 
 done_testing;

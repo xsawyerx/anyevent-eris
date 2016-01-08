@@ -420,6 +420,59 @@ sub flush_client {
     }
 }
 
+sub graphite_connect {
+    my $self = shift;
+
+    eval {
+        $self->{'_graphite'} = AnyEvent::Graphite->new(
+            host => $self->{'config'}{'GraphiteHost'},
+            port => $self->{'config'}{'GraphitePort'},
+        );
+
+        1;
+    } or do {
+        my $error = $@ || 'Zombie error';
+        AE::log debug => "Graphite server setup failed: $error";
+    }
+}
+
+sub stats {
+    my $self = shift;
+
+    if ( ! exists $self->{'stats'} ) {
+        $self->{'stats'} = {
+            map +( $_ => 0 ), qw<
+                received received_bytes dispatched dispatched _bytes
+            >
+        };
+
+        return;
+    }
+
+    my $stats = delete $self->{'stats'};
+
+    if ( $self->{'_graphite'} ) {
+        my $time = AE::now;
+        foreach my $stat ( keys %{$stats}) {
+            my $metric = join '.', $self->{'config'}{'GraphitePrefix'},
+                                   $self->{'hostname'},
+                                   $stat;
+            eval {
+                $self->{'_graphite'}->send($metric, $stats->{$stat}, $time);
+                1;
+            } or do {
+                my $error = $@ || 'Zombie error';
+                AE::log debug => 'Error sending statistics, reconnecting.';
+                $self->graphite_connect;
+                last;
+            }
+        }
+    }
+
+    AE::log debug => 'STATS: ' .
+                     join ', ', map "$_:$stats->{$_}", keys %{$stats};
+}
+
 sub run {
     my $self       = shift;
     $self->{'_cv'} = shift || AE::cv;
@@ -440,6 +493,91 @@ sub register_client {
     $self->clients->{$SID} = {
         handle => $handle,
     };
+}
+
+sub dispatch_message {
+    my ( $self, $msg ) = @_;
+    $self->_dispatch_messages( [$msg] );
+}
+
+sub dispatch_messages {
+    my ( $self, $msgs ) = @_;
+    $self->_dispatch_messages( [ split /\n/, $msgs ] );
+}
+
+sub _dispatch_messages {
+    my ( $self, $msgs ) = @_;
+
+    my $dispatched = 0;
+    my $bytes      = 0;
+
+    # Handle fullfeeds
+    foreach my $SID ( keys %{ $self->{'full'} } ) {
+        push @{ $self->{buffers}{$SID} }, @{$msgs};
+        $dispatched += @$msgs;
+        $bytes      += length $_ for @{$msgs};
+    }
+
+    foreach my $msg ( @{$msgs} ) {
+        # Grab statitics;
+        $self->{'stats'}{'received'}++;
+        $self->{'stats'}{'received_bytes'} += length $msg;
+
+        # Program based subscriptions
+        if ( my ($program) = map lc, ( $msg =~ /$_PRE{'program'}/ ) ) {
+            # remove the sub process and PID from the program
+            $program =~ s/\(.*//g;
+            $program =~ s/\[.*//g;
+
+            if ( exists $self->{'programs'}{$program} && $self->{'programs'}{$program} > 0 ) {
+                foreach my $SID ( keys %{ $self->{'subscribers'} } ) {
+                    exists $self->{'subscribers'}{$SID}{$program}
+                        or next;
+
+                    push @{ $self->{'buffers'}{$SID} }, $msg;
+                    $dispatched++;
+                    $bytes += length $msg;
+                }
+            }
+        }
+
+        # Match based subscriptions
+        if ( keys %{ $self->{'words'} } ) {
+            foreach my $word ( keys %{ $self->{'words'} } ) {
+                if ( index ( $msg, $word ) != -1 ) {
+                    foreach my $SID ( keys %{ $self->{'match'} } ) {
+                        exists $self->{'match'}{$SID}{$word}
+                            or next;
+
+                        push @{ $self->{'buffers'}{$SID} }, $msg;
+                        $dispatched++;
+                        $bytes += length $msg;
+                    }
+                }
+            }
+        }
+
+        # Regex based subscriptions
+        if ( keys %{ $self->{'regex'} } ) {
+            my %hit = ();
+            foreach my $SID ( keys %{ $self->{'regex'} } ) {
+                foreach my $re ( keys %{ $self->{'regex'}{$SID} } ) {
+                    if ( $hit{$re} || $msg =~ /$re/ ) {
+                        $hit{$re} = 1;
+                        push @{ $self->{'buffers'}{$SID} }, $msg;
+                        $dispatched++;
+                        $bytes += length $msg;
+                    }
+                }
+            }
+        }
+    }
+
+    # Report statistics for dispatched messages
+    if ( $dispatched > 0 ) {
+        $self->{'stats'}{'dispatched'}       += $dispatched;
+        $self->{'stats'}{'dispatched_bytes'} += $bytes;
+    }
 }
 
 sub _gen_session_id {
