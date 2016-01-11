@@ -13,7 +13,6 @@ subtest 'Run server' => sub {
         $cv->send('OK');
     };
 
-    $cv->recv;
     is( $server->run($cv), 'OK', 'Server closed' );
 };
 
