@@ -48,7 +48,7 @@ sub _connect {
 
     $self->{'_client'} ||= tcp_connect $addr, $port, sub {
         my ($fh) = @_
-            or BAIL_OUT("Connect failed: $!");
+            or AE::log fatal => "Connect failed: $!";
 
         my $hdl; $hdl = AnyEvent::Handle->new(
             fh       => $fh,
