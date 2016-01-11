@@ -19,7 +19,7 @@ sub new {
         Subscribe      => undef,
         Match          => undef,
         MessageHandler => undef,
-        @_,
+        %opts,
     }, $class;
 
     $opts{'MessageHandler'}
