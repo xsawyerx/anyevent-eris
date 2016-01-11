@@ -11,3 +11,4 @@
 * Move all timers to $self->{'_timers'}
 * Check for memory leaks caused by closing over $self in callbacks saved in hash keys in $self
 * Rewrite on_read in Eris client
+* Memory leak test shows memory leak
