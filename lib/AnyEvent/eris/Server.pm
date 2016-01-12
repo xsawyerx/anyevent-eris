@@ -362,7 +362,6 @@ sub new {
                 AE::log debug => "SERVER, client $SID disconnected.";
             },
 
-            # POE handler: client_input
             on_read => sub {
                 my ($hdl) = @_;
                 chomp( my $line = delete $hdl->{'rbuf'} );
