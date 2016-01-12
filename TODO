@@ -7,9 +7,6 @@ Code cleanup:
     * "quit" method should delete all client data
     * When unregistering streams, why not just keep it empty? delete entire slot is silly
 
-Feature:
-    * Support for filter types? "Stream" is a no-op, "Line" is... the default?
-
 Tests:
     * Test in tests incorrect input for all registrations (regexp, for example)
     * Test in code more registrations (where args are available, like in regexp)
