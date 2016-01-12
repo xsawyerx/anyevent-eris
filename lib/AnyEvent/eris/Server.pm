@@ -381,13 +381,13 @@ sub new {
             },
         );
 
-        my $SID = $self->_gen_session_id($handle);
+        my $SID = $inner_self->_gen_session_id($handle);
         $handle->push_write("EHLO Streamer (KERNEL: $$:$SID)\n");
         $inner_self->register_client( $SID, $handle );
     };
 
     $self->{'_flush_timer'} = AE::timer 0.1, 0.1, sub {
-        $self->flush_client;
+        $inner_self->flush_client;
     };
 
     # Statistics Tracking
@@ -395,7 +395,7 @@ sub new {
         and $self->graphite_connect;
 
     $self->{'_stats_timer'} = AE::timer 0, 60, sub {
-        $self->stats;
+        $inner_self->stats;
     };
 
     return $self;
