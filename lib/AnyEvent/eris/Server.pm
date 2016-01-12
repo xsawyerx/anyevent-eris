@@ -348,7 +348,7 @@ sub new {
             fh       => $fh,
             on_error => sub {
                 my ( $hdl, $fatal, $msg ) = @_;
-                my $SID = $inner_self->_gen_session_id($hdl);
+                my $SID = $inner_self->_session_id($hdl);
                 $inner_self->hangup_client($SID);
                 $inner_self->_server_error( $msg, $fatal );
                 $hdl->destroy;
@@ -356,7 +356,7 @@ sub new {
 
             on_eof => sub {
                 my ($hdl) = @_;
-                my $SID = $inner_self->_gen_session_id($hdl);
+                my $SID = $inner_self->_session_id($hdl);
                 $inner_self->hangup_client($SID);
                 $hdl->destroy;
                 AE::log debug => "SERVER, client $SID disconnected.";
@@ -365,7 +365,7 @@ sub new {
             on_read => sub {
                 my ($hdl) = @_;
                 chomp( my $line = delete $hdl->{'rbuf'} );
-                my $SID = $inner_self->_gen_session_id($hdl);
+                my $SID = $inner_self->_session_id($hdl);
 
                 foreach my $command ( keys %client_commands ) {
                     my $regex = $client_commands{$command};
@@ -379,7 +379,7 @@ sub new {
             },
         );
 
-        my $SID = $inner_self->_gen_session_id($handle);
+        my $SID = $inner_self->_session_id($handle);
         $handle->push_write("EHLO Streamer (KERNEL: $$:$SID)\n");
         $inner_self->register_client( $SID, $handle );
     };
@@ -574,7 +574,7 @@ sub _dispatch_messages {
     }
 }
 
-sub _gen_session_id {
+sub _session_id {
     my ( $self, $handle ) = @_;
     # AnyEvent::Handle=HASH(0x1bb30f0)
     "$handle" =~ /\D0x([a-fA-F0-9]+)/;
