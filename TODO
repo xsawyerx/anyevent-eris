@@ -4,7 +4,6 @@ Fix:
 Code cleanup:
     * Normalize all heap keys (constants?)
     * Clear "buffers" and "clients"
-    * "quit" method should delete all client data
     * When unregistering streams, why not just keep it empty? delete entire slot is silly
 
 bin/eris-server.pl:
