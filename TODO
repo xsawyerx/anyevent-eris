@@ -1,16 +1,22 @@
-* Clear "buffers" and "clients"
-* Normalize all heap keys (constants?)
-* Test in tests incorrect input for all registrations (regexp, for example)
-* Test in code more registrations (where args are available, like in regexp)
-* "quit" method should delete all client data
-* The handle doesn't seem to get cleaned up ($self->clients->{$HANDLE}{})
-* Because tests are using 'done_testing' and there's no count, it's impossible to know if a line did or did not arrive
-* Support for filter types? "Stream" is a no-op, "Line" is... the default?
-* Move all timers to $self->{'_timers'}
-* Check for memory leaks caused by closing over $self in callbacks saved in hash keys in $self
-* Rewrite on_read in Eris client
-* All regexes matches are created one a time, but you can only unregister from all
-* When unregistering streams, why not just keep it empty? delete entire slot is silly
+Fix:
+    * The handle doesn't seem to get cleaned up ($self->clients->{$HANDLE}{})
+    * Rewrite on_read in Eris client
+
+Code cleanup:
+    * Normalize all heap keys (constants?)
+    * Clear "buffers" and "clients"
+    * "quit" method should delete all client data
+    * Move all timers to $self->{'_timers'}
+    * When unregistering streams, why not just keep it empty? delete entire slot is silly
+
+Feature:
+    * All regexes matches are created one a time, but you can only unregister from all
+    * Support for filter types? "Stream" is a no-op, "Line" is... the default?
+
+Tests:
+    * Test in tests incorrect input for all registrations (regexp, for example)
+    * Test in code more registrations (where args are available, like in regexp)
+    * Because tests are using 'done_testing' and there's no count, it's impossible to know if a line did or did not arrive
 
 bin/eris-server.pl:
     * Add Getopt::Long
