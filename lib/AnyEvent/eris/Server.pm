@@ -7,10 +7,10 @@ use AnyEvent::Handle;
 use AnyEvent::Socket;
 use AnyEvent::Graphite;
 
-my @_STREAM_NAMES     = qw(subscribers match debug full regex);
+my @_STREAM_NAMES     = qw(subscription match debug full regex);
 my %_STREAM_ASSISTERS = (
-    subscribers => 'programs',
-    match       => 'words',
+    subscription => 'programs',
+    match        => 'words',
 );
 
 # Precompiled Regular Expressions
@@ -49,8 +49,7 @@ sub handle_subscribe {
 
     my @programs = map lc, split /[\s,]+/, $args;
     foreach my $program (@programs) {
-        # FIXME: add this to the SID heap instead
-        $self->{'subscribers'}{$SID}{$program} = 1;
+        $self->clients->{$SID}{'subscription'}{$program} = 1;
 
         # number of registered programs
         $self->{'programs'}{$program}++;
@@ -68,13 +67,13 @@ sub handle_unsubscribe {
 
     my @programs = map lc, split /[\s,]+/, $args;
     foreach my $program (@programs) {
-        delete $self->{'subscribers'}{$SID}{$program};
-        $self->{'programs'}{$program}--;
-        delete $self->{'programs'}{$program}
-            unless $self->{'programs'}{$program} > 0;
+        delete $self->clients->{$SID}{'subscription'}{$program};
+
+        --$self->{'programs'}{$program} <= 0
+            and delete $self->{'programs'}{$program};
     }
 
-    delete $self->{'subscribers'}{$SID};
+    delete $self->clients->{$SID}{'subscription'};
 
     $handle->push_write(
         'Subscription removed for : ' .
@@ -88,9 +87,9 @@ sub handle_fullfeed {
 
     $self->remove_all_streams($SID);
 
-    # FIXME: keep this inside the SID heap
     # FIXME: this does not add it anywhere to the streams heap
-    $self->{'full'}{$SID} = 1;
+    $self->clients->{$SID}{'full'} = 1;
+
     $handle->push_write(
         "Full feed enabled, all other functions disabled.\n"
     );
@@ -102,7 +101,7 @@ sub handle_nofullfeed {
     $self->remove_all_streams($SID);
 
     # XXX: Not in original implementation
-    delete $self->{'full'}{$SID};
+    delete $self->clients->{$SID}{'full'};
 
     $handle->push_write("Full feed disabled.\n");
 }
@@ -115,9 +114,7 @@ sub handle_match {
     my @words = map lc, split /[\s,]+/, $args;
     foreach my $word (@words) {
         $self->{'words'}{$word}++;
-
-        # FIXME: keep this inside the SID heap
-        $self->{'match'}{$SID}{$word} = 1;
+        $self->clients->{$SID}{'match'}{$word} = 1;
     }
 
     $handle->push_write(
@@ -132,12 +129,11 @@ sub handle_nomatch {
 
     my @words = map lc, split /[\s,]+/, $args;
     foreach my $word (@words) {
-        delete $self->{'match'}{$SID}{$word};
+        delete $self->clients->{$SID}{'match'}{$word};
 
         # Remove the word from searching if this was the last client
-        $self->{'words'}{$word}--;
-        delete $self->{'words'}{$word}
-            unless $self->{'words'}{$word} > 0;
+        --$self->{'words'}{$word} <= 0
+            and delete $self->{'words'}{$word};
     }
 
     $handle->push_write(
@@ -152,7 +148,7 @@ sub handle_debug {
 
     $self->remove_stream( $SID, 'full' );
 
-    $self->{'debug'}{$SID} = 1;
+    $self->clients->{$SID}{'debug'} = 1;
     $handle->push_write("Debugging enabled.\n");
 }
 
@@ -160,14 +156,15 @@ sub handle_nobug {
     my ( $self, $handle, $SID ) = @_;
 
     $self->remove_stream( $SID, 'debug' );
-    delete $self->{'debug'}{$SID};
+    delete $self->clients->{$SID}{'debug'};
     $handle->push_write("Debugging disabled.\n");
 }
 
 sub handle_regex {
     my ( $self, $handle, $SID, $args ) = @_;
 
-    $self->{'full'}{$SID}
+    # do not handle a regex if it's already full subscription
+    $self->clients->{$SID}{'full'}
         and return;
 
     my $regex;
@@ -185,7 +182,7 @@ sub handle_regex {
         return;
     };
 
-    $self->{'regex'}{$SID}{$regex} = 1;
+    $self->clients->{$SID}{'regex'}{$regex} = 1;
     $handle->push_write(
         "Receiving messages matching regex : $args\n"
     );
@@ -195,48 +192,55 @@ sub handle_noregex {
     my ( $self, $handle, $SID ) = @_;
 
     $self->remove_stream( $SID, 'regex' );
-    delete $self->{'regex'}{$SID};
+    delete $self->clients->{$SID}{'regex'};
     $handle->push_write("No longer receiving regex-based matches\n");
 }
 
 sub handle_status {
     my ( $self, $handle, $SID ) = @_;
-    my $cnt = scalar( keys %{ $self->clients } );
+    my $clients      = $self->clients;
+    my $client_count = scalar keys %{$clients};
 
     my @details = ();
     foreach my $stream (@_STREAM_NAMES) {
-        if ( exists $self->{$stream} && ref $self->{$stream} eq 'HASH' ) {
-            my $cnt    = keys %{ $self->{$stream} };
-            my $assist = 0;
+        # add streams from all SIDs
+        my $stream_count = 0;
+        my $assist_count = 0;
+        foreach my $SID ( keys %{$clients} ) {
+            $clients->{$SID}{$stream}
+                and $stream_count++;
 
-            exists $_STREAM_ASSISTERS{$stream}            &&
-            exists $self->{ $_STREAM_ASSISTERS{$stream} } &&
-            ref $self->{ $_STREAM_ASSISTERS{$stream} } eq 'HASH'
-                and $assist = scalar keys %{ $self->{ $_STREAM_ASSISTERS{$stream} } };
+            my $assist = $_STREAM_ASSISTERS{$stream}
+                or next;
 
-            next if $cnt <= 0 && $assist <= 0;
-            my $det = "$stream=$cnt";
-            $det .= ":$assist" if $assist > 0;
-
-            push @details, $det;
+            $assist_count += scalar keys %{ $self->{$assist} || {} };
         }
+
+        $stream_count == 0
+            and next;
+
+        my $single_details = "$stream=$stream_count";
+        $assist_count and $single_details .= ":$assist_count";
+
+        push @details, $single_details;
     }
 
     my $details = join ', ', @details;
-    $handle->push_write("STATUS[0]: $cnt connections: $details\n");
+    $handle->push_write("STATUS[0]: $client_count connections: $details\n");
 }
 
 sub handle_dump {
     my ( $self, $handle, $SID, $type ) = @_;
+    my $clients = $self->clients;
 
     my %dispatch = (
         assisters => sub {
             my @details = ();
             foreach my $asst ( values %_STREAM_ASSISTERS ) {
-                exists $self->{$asst} &&
-                ref $self->{$asst} eq 'HASH'
-                    and push @details,
-                        "$asst -> " . join ',', keys %{ $self->{$asst} };
+                $self->{$asst} or next;
+                my @SIDs = grep $clients->{$_}{$asst}, keys %{$clients};
+                push @details,
+                     "$asst -> " . join ',', keys %{ $self->{$asst} };
             }
 
             return @details;
@@ -253,19 +257,19 @@ sub handle_dump {
         streams => sub {
             my @details = ();
 
-            foreach my $str (@_STREAM_NAMES) {
-                exists $self->{$str} &&
-                ref    $self->{$str} eq 'HASH'
-                    or next;
+            foreach my $stream (@_STREAM_NAMES) {
+                my @SIDs;
+                foreach my $SID ( keys %{$clients} ) {
+                    $clients->{$SID}{$stream}
+                        or next;
 
-                my @sids = ();
-                foreach my $sid ( keys %{ $self->{$str} } ) {
-                    push @sids, ref $self->{$str}{$sid} eq 'HASH'
-                        ? "$sid:" . join ',', keys %{ $self->{$str}{$sid} }
-                        : $sid;
+                    my $stream_data = $clients->{$SID}{$stream};
+                    push @SIDs, ref $stream_data eq 'HASH'
+                              ? "$SID:" . join ',', keys %{$stream_data}
+                              : $SID;
                 }
 
-                push @details, "$str -> " . join '; ', @sids;
+                push @details, "$stream -> " . join '; ', @SIDs;
             }
 
             return @details;
@@ -281,18 +285,16 @@ sub handle_dump {
     }
 }
 
-# FIXME: this should all user session data
 sub handle_quit {
     my ( $self, $handle, $SID ) = @_;
     $handle->push_write('Terminating connection on your request.');
+    $self->hangup_client($SID);
     $self->{'_cv'}->send;
 }
 
 sub hangup_client {
     my ( $self, $SID ) = @_;
     delete $self->clients->{$SID};
-    delete $self->{'buffers'}{$SID};
-    $self->remove_all_streams($SID);
     AE::log debug => "Client Termination Posted: $SID";
 }
 
@@ -300,7 +302,7 @@ sub remove_stream {
     my ( $self, $SID, $stream ) = @_;
     AE::log debug => "Removing '$stream' for $SID";
 
-    my $client_streams = delete $self->{'streams'}{$stream}{$SID};
+    my $client_streams = delete $self->clients->{$SID}{'streams'}{$stream};
 
     # FIXME:
     # I *think* what this is supposed to do is delete assists
@@ -388,15 +390,6 @@ sub new {
         $self->flush_client;
     };
 
-    # Stream Storage
-    # and
-    # Assistance
-    $self->{$_} = {}
-        for @_STREAM_NAMES, values %_STREAM_ASSISTERS;
-
-    # Output buffering
-    $self->{'buffers'} = {};
-
     # Statistics Tracking
     $self->{'config'}{'GraphiteHost'}
         and $self->graphite_connect;
@@ -409,19 +402,18 @@ sub new {
 }
 
 sub flush_client {
-    my $self = shift;
+    my $self    = shift;
+    my $clients = $self->clients;
 
-    foreach my $SID ( keys %{ $self->{'buffers'} } ) {
-        my $msgs = $self->{'buffers'}{$SID};
-
-        @{$msgs} > 0
-            or next;
+    foreach my $SID ( keys %{$clients} ) {
+        my $client_data = $clients->{$SID};
+        my $msgs        = $client_data->{'buffers'};
+        @{$msgs} > 0 or next;
 
         # write the messages to the SID
         my $msgs_str = join "\n", @{$msgs};
-        $self->clients->{$SID}{'handle'}->push_write("$msgs_str\n");
-
-        $self->{'buffers'}{$SID} = [];
+        $client_data->{'handle'}->push_write("$msgs_str\n");
+        $client_data->{'buffers'} = [];
     }
 }
 
@@ -492,11 +484,9 @@ sub clients {
 sub register_client {
     my ( $self, $SID, $handle ) = @_;
 
-    # FIXME: put buffers in the client hash instead
-    $self->{'buffers'}{$SID} = [];
-
     $self->clients->{$SID} = {
-        handle => $handle,
+        buffers => [],
+        handle  => $handle,
     };
 }
 
@@ -513,13 +503,14 @@ sub dispatch_messages {
 sub _dispatch_messages {
     my ( $self, $msgs ) = @_;
 
+    my $clients    = $self->clients;
     my $dispatched = 0;
     my $bytes      = 0;
 
     # Handle fullfeeds
-    foreach my $SID ( keys %{ $self->{'full'} } ) {
-        push @{ $self->{buffers}{$SID} }, @{$msgs};
-        $dispatched += @$msgs;
+    foreach my $SID ( keys %{$clients} ) {
+        push @{ $clients->{$SID}{'buffers'} }, @{$msgs};
+        $dispatched += scalar @{$msgs};
         $bytes      += length $_ for @{$msgs};
     }
 
@@ -535,11 +526,11 @@ sub _dispatch_messages {
             $program =~ s/\[.*//g;
 
             if ( exists $self->{'programs'}{$program} && $self->{'programs'}{$program} > 0 ) {
-                foreach my $SID ( keys %{ $self->{'subscribers'} } ) {
-                    exists $self->{'subscribers'}{$SID}{$program}
+                foreach my $SID ( keys %{$clients} ) {
+                    exists $clients->{$SID}{'subscription'}{$program}
                         or next;
 
-                    push @{ $self->{'buffers'}{$SID} }, $msg;
+                    push @{ $clients->{$SID}{'buffers'} }, $msg;
                     $dispatched++;
                     $bytes += length $msg;
                 }
@@ -550,11 +541,11 @@ sub _dispatch_messages {
         if ( keys %{ $self->{'words'} } ) {
             foreach my $word ( keys %{ $self->{'words'} } ) {
                 if ( index ( $msg, $word ) != -1 ) {
-                    foreach my $SID ( keys %{ $self->{'match'} } ) {
-                        exists $self->{'match'}{$SID}{$word}
+                    foreach my $SID ( keys %{$clients} ) {
+                        exists $clients->{$SID}{'match'}{$word}
                             or next;
 
-                        push @{ $self->{'buffers'}{$SID} }, $msg;
+                        push @{ $clients->{$SID}{'buffers'} }, $msg;
                         $dispatched++;
                         $bytes += length $msg;
                     }
@@ -565,11 +556,11 @@ sub _dispatch_messages {
         # Regex based subscriptions
         if ( keys %{ $self->{'regex'} } ) {
             my %hit = ();
-            foreach my $SID ( keys %{ $self->{'regex'} } ) {
-                foreach my $re ( keys %{ $self->{'regex'}{$SID} } ) {
+            foreach my $SID ( keys %{$clients} ) {
+                foreach my $re ( keys %{ $clients->{$SID}{'regex'} } ) {
                     if ( $hit{$re} || $msg =~ /$re/ ) {
                         $hit{$re} = 1;
-                        push @{ $self->{'buffers'}{$SID} }, $msg;
+                        push @{ $clients->{$SID}{'buffers'} }, $msg;
                         $dispatched++;
                         $bytes += length $msg;
                     }

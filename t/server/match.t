@@ -2,6 +2,7 @@ use t::lib::Eris::Test;
 
 my ( $server, $cv ) = new_server;
 my ( $addr, $port ) = @{$server}{qw<ListenAddress ListenPort>};
+my $SID = '';
 my $c = tcp_connect $addr, $port, sub {
     my ($fh) = @_
         or BAIL_OUT("Connect failed: $!");
@@ -14,51 +15,48 @@ my $c = tcp_connect $addr, $port, sub {
             my ($hdl) = @_;
             chomp( my $line = delete $hdl->{'rbuf'} );
 
-            my $words   = $server->{'words'};
-            my $matches = $server->{'match'};
             if ( $line =~ /^EHLO/ ) {
+                ($SID) = $line =~ /\(KERNEL:\s\d+:([a-fA-F0-9]+)\)/;
                 $hdl->push_write("match hello, world\n");
 
                 is(
-                    scalar keys %{$words},
+                    scalar keys %{ $server->{'words'} },
                     0,
-                    'No clients registered words',
+                    'No registered words',
                 );
 
                 is(
-                    scalar keys %{$matches},
-                    0,
-                    'No clients registered matches',
+                    $server->clients->{$SID}{'match'},
+                    undef,
+                    'Client not registered for matches',
                 );
             } elsif ( $line =~ /^Receiving messages matching : / ) {
-                is(
-                    scalar keys %{$matches},
-                    1,
-                    'A single client has matches',
+                is_deeply(
+                    $server->clients->{$SID}{'match'},
+                    { hello => 1, world => 1 },
+                    'Client registered for two word matches',
                 );
 
-                my $key = ( keys %{$matches} )[0];
-
                 is_deeply(
-                    $matches->{$key},
+                    $server->{'words'},
                     { hello => 1, world => 1 },
-                    "$key registered for two words",
+                    'Two words registered',
                 );
 
                 $hdl->push_write("nomatch hello, world\n");
             } elsif ( $line =~ /^No longer receiving messages matching : / ) {
-                is(
-                    scalar keys %{$words},
-                    0,
-                    'No more clients registered for words',
+                is_deeply(
+                    $server->clients->{$SID}{'match'},
+                    {},
+                    'Client not registered for matched words anymore',
                 );
 
-                my $key = ( keys %{$matches} )[0];
-                is(
-                    scalar keys %{ $matches->{$key} },
-                    0,
-                    'No registered matches for client',
+                is_deeply(
+                    $server->{'words'},
+                    {},
+                    'No more words registered',
                 );
+
                 $cv->send('OK');
             } else {
                 $cv->send("Unknown response: $line");

@@ -2,6 +2,7 @@ use t::lib::Eris::Test;
 
 my ( $server, $cv ) = new_server;
 my ( $addr, $port ) = @{$server}{qw<ListenAddress ListenPort>};
+my $SID = '';
 my $c = tcp_connect $addr, $port, sub {
     my ($fh) = @_
         or BAIL_OUT("Connect failed: $!");
@@ -16,35 +17,30 @@ my $c = tcp_connect $addr, $port, sub {
 
             my $regex = $server->{'regex'};
             if ( $line =~ /^EHLO/ ) {
+                ($SID) = $line =~ /\(KERNEL:\s\d+:([a-fA-F0-9]+)\)/;
+
+                is(
+                    $server->clients->{$SID}{'regex'},
+                    undef,
+                    'Client not registered for regex',
+                );
+
                 $hdl->push_write("regex .+\n");
-
-                is(
-                    scalar keys %{$regex},
-                    0,
-                    'No clients registered for regex',
-                );
             } elsif ( $line =~ /^Receiving messages matching regex : / ) {
-                is(
-                    scalar keys %{$regex},
-                    1,
-                    'A single client has regex',
-                );
-
-                my $key = ( keys %{$regex} )[0];
-
-                is(
-                    scalar keys %{ $regex->{$key} },
-                    1,
-                    "$key registered for regex",
+                is_deeply(
+                    $server->clients->{$SID}{'regex'},
+                    { qr{.+} => 1 },
+                    'Client registered for regex',
                 );
 
                 $hdl->push_write("noregex\n");
             } elsif ( $line =~ /^No longer receiving regex-based matches/ ) {
-                is(
-                    scalar keys %{$regex},
-                    0,
-                    'No more clients registered for regex',
+                is_deeply(
+                    $server->clients->{$SID}{'regex'},
+                    undef,
+                    'Client no longer registered for regex',
                 );
+
 
                 $cv->send('OK');
             } else {

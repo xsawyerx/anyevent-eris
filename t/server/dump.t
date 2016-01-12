@@ -23,11 +23,12 @@ my $c = tcp_connect $addr, $port, sub {
             } else {
                 is(
                     $line,
-                    "subscribers -> \nmatch -> \ndebug -> \n" .
+                    "subscription -> \nmatch -> \ndebug -> \n" .
                     "full -> $SID\n" .
                     "regex -> ",
                     'Correct dump output'
                 );
+
                 $cv->send('OK');
             }
         },

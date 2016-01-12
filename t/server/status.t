@@ -2,6 +2,7 @@ use t::lib::Eris::Test;
 
 my ( $server, $cv ) = new_server;
 my ( $addr, $port ) = @{$server}{qw<ListenAddress ListenPort>};
+my $SID = '';
 my $c = tcp_connect $addr, $port, sub {
     my ($fh) = @_
         or BAIL_OUT("Connect failed: $!");
@@ -15,14 +16,16 @@ my $c = tcp_connect $addr, $port, sub {
             chomp( my $line = delete $hdl->{'rbuf'} );
 
             if ( $line =~ /^EHLO/ ) {
-                $hdl->push_write(
-                    "subscribe prog1,prog2,prog3,prog4,prog5\n"
-                );
+                ($SID) = $line =~ /\(KERNEL:\s\d+:([a-fA-F0-9]+)\)/;
 
                 is(
-                    scalar keys %{ $server->{'subscribers'} },
-                    0,
-                    'No clients subscribed',
+                    $server->clients->{$SID}{'subscription'},
+                    undef,
+                    'Client not subscribed',
+                );
+
+                $hdl->push_write(
+                    "subscribe prog1,prog2,prog3,prog4,prog5\n"
                 );
             } elsif ( $line =~ /^Subscribed/ ) {
                 is(
@@ -31,17 +34,20 @@ my $c = tcp_connect $addr, $port, sub {
                     'Subscribed to all the right programs',
                 );
 
-                is(
-                    scalar keys %{ $server->{'subscribers'} },
-                    1,
-                    'A single client subscribed',
+                is_deeply(
+                    $server->clients->{$SID}{'subscription'},
+                    {
+                        prog1 => 1, prog2 => 1, prog3 => 1,
+                        prog4 => 1, prog5 => 1,
+                    },
+                    'Client subscribed to all the right programs',
                 );
 
                 $hdl->push_write("status\n");
             } else {
                 is(
                     $line,
-                    'STATUS[0]: 1 connections: subscribers=1:5',
+                    'STATUS[0]: 1 connections: subscription=1:5',
                     'Correct status',
                 );
 

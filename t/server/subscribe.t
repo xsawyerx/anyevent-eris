@@ -2,6 +2,7 @@ use t::lib::Eris::Test;
 
 my ( $server, $cv ) = new_server;
 my ( $addr, $port ) = @{$server}{qw<ListenAddress ListenPort>};
+my $SID = '';
 my $c = tcp_connect $addr, $port, sub {
     my ($fh) = @_
         or BAIL_OUT("Connect failed: $!");
@@ -15,14 +16,16 @@ my $c = tcp_connect $addr, $port, sub {
             chomp( my $line = delete $hdl->{'rbuf'} );
 
             if ( $line =~ /^EHLO/ ) {
-                $hdl->push_write(
-                    "subscribe prog1,prog2, prog3, prog4,prog5\n"
-                );
+                ($SID) = $line =~ /\(KERNEL:\s\d+:([a-fA-F0-9]+)\)/;
 
                 is(
-                    scalar keys %{ $server->{'subscribers'} },
-                    0,
-                    'No clients subscribed',
+                    $server->clients->{$SID}{'subscription'},
+                    undef,
+                    'Client not subscribed',
+                );
+
+                $hdl->push_write(
+                    "subscribe prog1,prog2, prog3, prog4,prog5\n"
                 );
             } elsif ( $line =~ /^Subscribed/ ) {
                 is(
@@ -31,10 +34,13 @@ my $c = tcp_connect $addr, $port, sub {
                     'Subscribed to all the right programs',
                 );
 
-                is(
-                    scalar keys %{ $server->{'subscribers'} },
-                    1,
-                    'A single client subscribed',
+                is_deeply(
+                    $server->clients->{$SID}{'subscription'},
+                    {
+                        prog1 => 1, prog2 => 1, prog3 => 1,
+                        prog4 => 1, prog5 => 1,
+                    },
+                    'Client not subscribed',
                 );
 
                 $hdl->push_write(
@@ -49,7 +55,12 @@ my $c = tcp_connect $addr, $port, sub {
 
 is( $server->run($cv), 'OK', 'Server closed' );
 
-is_deeply( $server->{'subscribers'}, {}, 'Subscribers cleared' );
+is(
+    $server->clients->{$SID}{'subscription'},
+    undef,
+    'Subscribers cleared',
+);
+
 is_deeply( $server->{'programs'},    {}, 'Programs cleared'    );
 
 done_testing;

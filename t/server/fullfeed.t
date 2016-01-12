@@ -2,6 +2,7 @@ use t::lib::Eris::Test;
 
 my ( $server, $cv ) = new_server;
 my ( $addr, $port ) = @{$server}{qw<ListenAddress ListenPort>};
+my $SID = '';
 my $c = tcp_connect $addr, $port, sub {
     my ($fh) = @_
         or BAIL_OUT("Connect failed: $!");
@@ -15,34 +16,30 @@ my $c = tcp_connect $addr, $port, sub {
             chomp( my $line = delete $hdl->{'rbuf'} );
 
             if ( $line =~ /^EHLO/ ) {
-                $hdl->push_write("fullfeed\n");
+                ($SID) = $line =~ /\(KERNEL:\s\d+:([a-fA-F0-9]+)\)/;
 
                 is(
-                    scalar keys %{ $server->{'full'} },
-                    0,
-                    'No clients have fullfeed',
+                    $server->clients->{$SID}{'full'},
+                    undef,
+                    'Client not registered for fullfeed',
                 );
+
+                $hdl->push_write("fullfeed\n");
             } elsif ( $line =~ /^Full feed enabled/ ) {
                 is(
-                    scalar keys %{ $server->{'full'} },
+                    $server->clients->{$SID}{'full'},
                     1,
-                    'A single client has fullfeed',
-                );
-
-                my $key = ( keys %{ $server->{'full'} } )[0];
-                is(
-                    $server->{'full'}{$key},
-                    1,
-                    "$key registered for fullfeed true",
+                    'Client registered for fullfeed',
                 );
 
                 $hdl->push_write("nofullfeed\n");
             } elsif ( $line =~ /^Full feed disabled/ ) {
                 is(
-                    scalar keys %{ $server->{'full'} },
-                    0,
-                    'No more clients registered for fullfeed',
+                    $server->clients->{$SID}{'full'},
+                    undef,
+                    'Client not registered for fullfeed anymore',
                 );
+
                 $cv->send('OK');
             } else {
                 $cv->send("Unknown response: $line");

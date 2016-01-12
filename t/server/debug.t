@@ -2,6 +2,7 @@ use t::lib::Eris::Test;
 
 my ( $server, $cv ) = new_server;
 my ( $addr, $port ) = @{$server}{qw<ListenAddress ListenPort>};
+my $SID = '';
 my $c = tcp_connect $addr, $port, sub {
     my ($fh) = @_
         or BAIL_OUT("Connect failed: $!");
@@ -14,36 +15,28 @@ my $c = tcp_connect $addr, $port, sub {
             my ($hdl) = @_;
             chomp( my $line = delete $hdl->{'rbuf'} );
 
-            my $debug = $server->{'debug'};
-            if ( $line =~ /^EHLO/ ) {
+            if ( $line =~ /^EHLO Streamer \(KERNEL: \d+:(.+)\)/ ) {
+                $SID = $1;
                 $hdl->push_write("debug\n");
 
                 is(
-                    scalar keys %{$debug},
-                    0,
-                    'No clients registered debugging',
+                    $server->clients->{$SID}{'debug'},
+                    undef,
+                    'No debugging for client yet',
                 );
             } elsif ( $line =~ /^Debugging enabled/ ) {
                 is(
-                    scalar keys %{$debug},
+                    $server->clients->{$SID}{'debug'},
                     1,
-                    'A single client has debugging',
-                );
-
-                my $key = ( keys %{$debug} )[0];
-
-                is(
-                    $debug->{$key},
-                    1,
-                    "$key registered for debugging",
+                    'Client has debugging enabled',
                 );
 
                 $hdl->push_write("nodebug\n");
             } elsif ( $line =~ /^Debugging disabled/ ) {
                 is(
-                    scalar keys %{$debug},
-                    0,
-                    'No more clients registered for debugging',
+                    $server->clients->{$SID}{'debug'},
+                    undef,
+                    'Client does not have debugging enabled',
                 );
 
                 $cv->send('OK');

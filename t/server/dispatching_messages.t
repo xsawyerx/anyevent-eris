@@ -20,6 +20,11 @@ my $c = tcp_connect $addr, $port, sub {
                 ($SID) = $line =~ /\(KERNEL:\s\d+:([a-fA-F0-9]+)\)/;
                 $hdl->push_write("fullfeed\n");
             } elsif ( $line =~ /^Full feed enabled/ ) {
+                is(
+                    $server->clients->{$SID}{'full'},
+                    1,
+                    'Full feed registered for client',
+                );
                 $registered_fullfeed++;
             } else {
                 $msg_arrived++;
