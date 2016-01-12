@@ -1,4 +1,4 @@
-use t::lib::Eris::Test;
+use t::lib::Eris::Test tests => 7;
 
 my ( $server, $cv ) = new_server;
 my ( $addr, $port ) = @{$server}{qw<ListenAddress ListenPort>};
@@ -66,5 +66,3 @@ my $c = tcp_connect $addr, $port, sub {
 };
 
 is( $server->run($cv), 'OK', 'Server closed' );
-
-done_testing;

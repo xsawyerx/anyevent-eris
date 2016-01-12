@@ -1,4 +1,4 @@
-use t::lib::Eris::Test;
+use t::lib::Eris::Test tests => 3;
 
 my $buffer_said_hi;
 my $buffer_msg      = 'Buffer says hi!';
@@ -35,5 +35,3 @@ my $timer; $timer = AE::timer 0.2, 0, sub {
 is( $server->run($cv), 'OK', 'Server closed' );
 ok( $buffer_said_hi, 'Buffer was flushed (flush_client)' );
 is_deeply( $server->clients->{$SID}{'buffers'}, [], 'Buffers were emptied' );
-
-done_testing;

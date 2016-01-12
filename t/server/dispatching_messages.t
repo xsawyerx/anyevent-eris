@@ -1,4 +1,4 @@
-use t::lib::Eris::Test;
+use t::lib::Eris::Test tests => 4;
 
 my ( $registered_fullfeed, $msg_arrived );
 my ( $server, $cv ) = new_server;
@@ -42,5 +42,3 @@ my $timer; $timer = AE::timer 0.05, 0, sub {
 is( $server->run($cv), 'OK', 'Server closed' );
 is( $registered_fullfeed, 1, 'Fullfeed registered' );
 is( $msg_arrived, 1, 'Message arrived (msg dispatching)' );
-
-done_testing;

@@ -8,20 +8,21 @@ use AnyEvent::Handle ();
 use AnyEvent::Socket ();
 use Import::Into     ();
 use Net::EmptyPort   ();
-
-BEGIN {
-    Test::More::use_ok('AnyEvent::eris::Client');
-    Test::More::use_ok('AnyEvent::eris::Server');
-}
+use AnyEvent::eris::Server;
+use AnyEvent::eris::Client;
 
 sub import {
-    my $target = caller;
-    strict->import::into($target);
-    warnings->import::into($target);
-    Test::More->import::into($target);
-    AnyEvent->import::into($target);
-    AnyEvent::Socket->import::into($target);
-    AnyEvent::Handle->import::into($target);
+    my ( $class, %opts ) = @_;
+    my $target           = caller;
+
+    $_->import::into($target) for qw<
+        strict warnings
+        AnyEvent AnyEvent::Socket AnyEvent::Handle
+        AnyEvent::eris::Server AnyEvent::eris::Client
+    >;
+
+    Test::More->import::into( $target, %opts );
+
     {
         no strict 'refs'; ## no critic
         *{"${target}::new_server"} = *new_server;

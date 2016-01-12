@@ -1,4 +1,4 @@
-use t::lib::Eris::Test;
+use t::lib::Eris::Test tests => 6;
 
 my ( $server, $cv ) = new_server;
 my ( $addr, $port ) = @{$server}{qw<ListenAddress ListenPort>};
@@ -62,5 +62,3 @@ is(
 );
 
 is_deeply( $server->{'programs'},    {}, 'Programs cleared'    );
-
-done_testing;

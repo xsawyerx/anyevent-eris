@@ -1,4 +1,4 @@
-use t::lib::Eris::Test;
+use t::lib::Eris::Test tests => 6;
 
 my ( $server, $cv ) = new_server;
 my ( $addr, $port ) = @{$server}{qw<ListenAddress ListenPort>};
@@ -44,5 +44,3 @@ is(
     $server->clients->{$key},
     'Same attribute',
 );
-
-done_testing;
