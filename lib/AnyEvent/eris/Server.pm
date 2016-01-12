@@ -87,7 +87,6 @@ sub handle_fullfeed {
 
     $self->remove_all_streams($SID);
 
-    # FIXME: this does not add it anywhere to the streams heap
     $self->clients->{$SID}{'full'} = 1;
 
     $handle->push_write(
