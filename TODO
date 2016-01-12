@@ -1,9 +1,3 @@
-Fix:
-    * Rewrite on_read in Eris client
-
-Code cleanup:
-    * Normalize all heap keys (constants?)
-
 bin/eris-server.pl:
     * Add Getopt::Long
 
