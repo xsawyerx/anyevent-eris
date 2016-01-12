@@ -385,17 +385,17 @@ sub new {
         $inner_self->register_client( $SID, $handle );
     };
 
-    $self->{'_flush_timer'} = AE::timer 0.1, 0.1, sub {
+    $self->{'_timers'}{'flush'} = AE::timer 0.1, 0.1, sub {
         $inner_self->flush_client;
+    };
+
+    $self->{'_timers'}{'stats'} = AE::timer 0, 60, sub {
+        $inner_self->stats;
     };
 
     # Statistics Tracking
     $self->{'config'}{'GraphiteHost'}
         and $self->graphite_connect;
-
-    $self->{'_stats_timer'} = AE::timer 0, 60, sub {
-        $inner_self->stats;
-    };
 
     return $self;
 }
