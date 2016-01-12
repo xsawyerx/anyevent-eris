@@ -1,5 +1,4 @@
 Fix:
-    * The handle doesn't seem to get cleaned up ($self->clients->{$HANDLE}{})
     * Rewrite on_read in Eris client
 
 Code cleanup:
