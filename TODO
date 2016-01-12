@@ -8,7 +8,6 @@ Code cleanup:
     * When unregistering streams, why not just keep it empty? delete entire slot is silly
 
 Feature:
-    * All regexes matches are created one a time, but you can only unregister from all
     * Support for filter types? "Stream" is a no-op, "Line" is... the default?
 
 Tests:
