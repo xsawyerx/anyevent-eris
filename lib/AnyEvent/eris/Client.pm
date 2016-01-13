@@ -56,7 +56,7 @@ sub _connect {
                 AE::log error => $_[2];
                 $_[0]->destroy;
                 $inner_self->{'_reconnect_timer'} = AE::timer 10, 0, sub {
-                    undef $self->{'_reconnect_timer'};
+                    undef $inner_self->{'_reconnect_timer'};
                     $inner_self->_connect;
                 };
             },
