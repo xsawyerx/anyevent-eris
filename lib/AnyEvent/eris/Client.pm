@@ -63,16 +63,6 @@ sub _connect {
 
             on_eof   => sub { $hdl->destroy; AE::log info => 'Done.' },
 
-            on_connect => sub {
-                $inner_self->{'readyState'} = 0;
-                $inner_self->{'connected'}  = 0;
-                $inner_self->{'buffer'}     = '';
-                $inner_self->{'_setup_pipe_timer'} = AE::timer 1, 0, sub {
-                    undef $inner_self->{'_setup_pipe_timer'};
-                    $inner_self->setup_pipe;
-                };
-            },
-
             on_read  => sub {
                 my ($hdl) = @_;
                 # XXX: we currently do not allow $block to be set
@@ -103,6 +93,14 @@ sub _connect {
                 }
             },
         );
+
+        $inner_self->{'readyState'}        = 0;
+        $inner_self->{'connected'}         = 0;
+        $inner_self->{'buffer'}            = '';
+        $inner_self->{'_setup_pipe_timer'} = AE::timer 1, 0, sub {
+            undef $inner_self->{'_setup_pipe_timer'};
+            $inner_self->setup_pipe($hdl);
+        };
     };
 
     return $self;
