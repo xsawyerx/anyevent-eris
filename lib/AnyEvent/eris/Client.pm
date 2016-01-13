@@ -84,12 +84,12 @@ sub _connect {
                     } elsif ( $line =~ /^Full feed enabled/ ) {
                         $inner_self->{'readyState'} = 1;
                     } else {
-                        $inner_self->handle_unknown($line);
+                        $inner_self->handle_unknown( $hdl, $line );
                     }
                 } elsif ( $line =~ /^EHLO Streamer/ ) {
                     $inner_self->{'connected'} = 1;
                 } else {
-                    $inner_self->handle_unknown($line);
+                    $inner_self->handle_unknown( $hdl, $line );
                 }
             },
         );
@@ -192,6 +192,11 @@ sub handle_message {
         my $error = $@ || 'Zombie error';
         AE::log error => "MessageHandler failed: $error";
     };
+}
+
+sub handle_unknown {
+    my ( $self, $handle, $msg ) = @_;
+    AE::log warn => "UNKNOWN INPUT: $msg";
 }
 
 1;
