@@ -84,7 +84,7 @@ sub _connect {
         );
 
         $inner_self->{'buffer'}            = '';
-        $inner_self->{'_setup_pipe_timer'} = AE::timer 1, 0, sub {
+        $inner_self->{'_setup_pipe_timer'} = AE::timer 0, 0, sub {
             undef $inner_self->{'_setup_pipe_timer'};
             $inner_self->setup_pipe($hdl);
         };
