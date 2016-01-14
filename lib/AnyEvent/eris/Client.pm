@@ -168,6 +168,9 @@ sub handle_message {
             no warnings;
             $msg = parse_syslog_line($line);
             1;
+        } or do {
+            my $error = $@ || 'Zombie error';
+            AE::log error => "Could not parse line: $line ($error)\n";
         };
 
         $success && $msg
