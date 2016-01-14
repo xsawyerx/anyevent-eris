@@ -72,21 +72,14 @@ sub _connect {
             on_eof   => sub { $hdl->destroy; AE::log info => 'Done.' },
 
             on_read  => sub {
-                my ($hdl) = @_;
-                chomp( my $rbuf = delete $hdl->{'rbuf'} );
+                $hdl->push_read (line => sub {
+                    my ($hdl, $line) = @_;
 
-                # XXX: we currently do not allow $block to be set
-                # all lines have a newline at the end
-                # original code:
-                # chomp $line unless $block
-                my @lines = split /\n/, $rbuf;
-
-                foreach my $line (@lines) {
                     List::Util::first { $line =~ $_ } @PROTOCOL_REGEXPS
-                        and next;
+                        and return;
 
                     $inner_self->handle_message( $line, $hdl );
-                }
+                });
             },
         );
 
