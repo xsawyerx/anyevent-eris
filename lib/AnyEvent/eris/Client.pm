@@ -9,6 +9,14 @@ use List::Util;
 use Scalar::Util;
 use Parse::Syslog::Line 'parse_syslog_line';
 
+# we recognize these
+my @PROTOCOL_REGEXPS = (
+    qr/^Subscribe to :/,
+    qr/^Receiving /,
+    qr/^Full feed enabled/,
+    qr/^EHLO Streamer/,
+);
+
 sub new {
     my ( $class, %opts ) = @_;
 
@@ -71,31 +79,15 @@ sub _connect {
                 # chomp $line unless $block
                 chomp( my $line = delete $hdl->{'rbuf'} );
 
-                if ( $inner_self->{'readyState'} == 1 ) {
-                    $inner_self->handle_message( $line, $hdl ); 
-                    return;
-                }
+                List::Util::first { $line =~ $_ } @PROTOCOL_REGEXPS
+                    and return;
 
-                if ( $inner_self->{'connected'} == 1 ) {
-                    if ( $line =~ /^Subscribed to :/ ) {
-                        $inner_self->{'readyState'} = 1;
-                    } elsif ( $line =~ /^Receiving / ) {
-                        $inner_self->{'readyState'} = 1;
-                    } elsif ( $line =~ /^Full feed enabled/ ) {
-                        $inner_self->{'readyState'} = 1;
-                    } else {
-                        $inner_self->handle_unknown( $hdl, $line );
-                    }
-                } elsif ( $line =~ /^EHLO Streamer/ ) {
-                    $inner_self->{'connected'} = 1;
-                } else {
-                    $inner_self->handle_unknown( $hdl, $line );
-                }
+                $inner_self->handle_message( $line, $hdl );
+
+
             },
         );
 
-        $inner_self->{'readyState'}        = 0;
-        $inner_self->{'connected'}         = 0;
         $inner_self->{'buffer'}            = '';
         $inner_self->{'_setup_pipe_timer'} = AE::timer 1, 0, sub {
             undef $inner_self->{'_setup_pipe_timer'};
@@ -192,11 +184,6 @@ sub handle_message {
         my $error = $@ || 'Zombie error';
         AE::log error => "MessageHandler failed: $error";
     };
-}
-
-sub handle_unknown {
-    my ( $self, $handle, $msg ) = @_;
-    AE::log warn => "UNKNOWN INPUT: $msg";
 }
 
 1;
