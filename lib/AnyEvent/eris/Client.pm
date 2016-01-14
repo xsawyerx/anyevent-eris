@@ -83,7 +83,10 @@ sub _connect {
             },
         );
 
-        $inner_self->{'buffer'}            = '';
+        $inner_self->{'buffer'} = '';
+
+        # FIXME: should this really be in a timer?
+        # all the actions relating to a socket are deferred anyway
         $inner_self->{'_setup_pipe_timer'} = AE::timer 0, 0, sub {
             undef $inner_self->{'_setup_pipe_timer'};
             $inner_self->setup_pipe($hdl);
