@@ -73,18 +73,20 @@ sub _connect {
 
             on_read  => sub {
                 my ($hdl) = @_;
+                chomp( my $rbuf = delete $hdl->{'rbuf'} );
+
                 # XXX: we currently do not allow $block to be set
                 # all lines have a newline at the end
                 # original code:
                 # chomp $line unless $block
-                chomp( my $line = delete $hdl->{'rbuf'} );
+                my @lines = split /\n/, $rbuf;
 
-                List::Util::first { $line =~ $_ } @PROTOCOL_REGEXPS
-                    and return;
+                foreach my $line (@lines) {
+                    List::Util::first { $line =~ $_ } @PROTOCOL_REGEXPS
+                        and next;
 
-                $inner_self->handle_message( $line, $hdl );
-
-
+                    $inner_self->handle_message( $line, $hdl );
+                }
             },
         );
 
