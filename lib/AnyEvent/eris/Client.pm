@@ -152,31 +152,16 @@ sub handle_message {
     my ( $self, $line, $handle ) = @_;
 
     my $msg;
-    if( $self->{'ReturnType'} eq 'string' ) {
-        $msg = $line;
-    } elsif( $self->{'ReturnType'} eq 'block' ) {
-        my $index = rindex $line, "\n";
+    my $success = eval {
+        no warnings;
+        $msg = parse_syslog_line($line);
+        1;
+    } or do {
+        my $error = $@ || 'Zombie error';
+        AE::log error => "Could not parse line: $line ($error)\n";
+    };
 
-        if ( $index == -1 ) {
-            $self->{'buffer'} .= $line;
-            return;
-        } else {
-            $msg = $self->{'buffer'} . substr $line, 0, $index + 1;
-            $line->{'buffer'} = substr $line, $index + 1;
-        }
-    } else {
-        my $success = eval {
-            no warnings;
-            $msg = parse_syslog_line($line);
-            1;
-        } or do {
-            my $error = $@ || 'Zombie error';
-            AE::log error => "Could not parse line: $line ($error)\n";
-        };
-
-        $success && $msg
-            or return;
-    }
+    $success && $msg or return;
 
     # Try the Message Handler, eventually we can do statistics here.
     eval {
