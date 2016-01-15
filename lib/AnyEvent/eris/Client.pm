@@ -10,11 +10,11 @@ use Scalar::Util;
 use Parse::Syslog::Line 'parse_syslog_line';
 
 # we recognize these
-my @PROTOCOL_REGEXPS = (
-    qr/^Subscribe to :/,
-    qr/^Receiving /,
-    qr/^Full feed enabled/,
-    qr/^EHLO Streamer/,
+my @PROTOCOL_LINE_PREFIXES = (
+    'Subscribe to :',
+    'Receiving ',
+    'Full feed enabled',
+    'EHLO Streamer',
 );
 
 sub new {
@@ -75,8 +75,9 @@ sub _connect {
                 $hdl->push_read (line => sub {
                     my ($hdl, $line) = @_;
 
-                    List::Util::first { $line =~ $_ } @PROTOCOL_REGEXPS
-                        and return;
+                    List::Util::first {
+                        substr( $line, 0, length $_ ) eq $_
+                    } @PROTOCOL_LINE_PREFIXES and return;
 
                     $inner_self->handle_message( $line, $hdl );
                 });
