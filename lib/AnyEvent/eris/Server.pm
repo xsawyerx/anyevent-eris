@@ -518,7 +518,7 @@ sub _dispatch_messages {
         $self->{'stats'}{'received_bytes'} += length $msg;
 
         # Program based subscriptions
-        if ( my ($program) = map lc, ( $msg =~ /$_PRE{'program'}/ ) ) {
+        if ( my ($program) = map lc, ( $msg =~ $_PRE{'program'} ) ) {
             # remove the sub process and PID from the program
             $program =~ s/\(.*//g;
             $program =~ s/\[.*//g;
