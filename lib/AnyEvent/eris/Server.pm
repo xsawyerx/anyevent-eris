@@ -334,7 +334,11 @@ sub new {
         GraphitePort   => 2003,
         GraphitePrefix => 'eris.dispatcher',
         hostname       => $hostname,
+
         @_,
+
+        clients        => {},
+        buffers        => {},
     }, $class;
 
     my ( $host, $port ) = @{$self}{qw<ListenAddress ListenPort>};
@@ -401,17 +405,18 @@ sub new {
 
 sub flush_client {
     my $self    = shift;
-    my $clients = $self->clients;
+    my $clients = $self->{'clients'};
+    my $buffers = $self->{'buffers'};
 
-    foreach my $SID ( keys %{$clients} ) {
-        my $client_data = $clients->{$SID};
-        my $msgs        = $client_data->{'buffers'};
+    foreach my $SID ( keys %{$buffers} ) {
+        my $msgs = $buffers->{$SID};
         @{$msgs} > 0 or next;
 
         # write the messages to the SID
         my $msgs_str = join "\n", @{$msgs};
-        $client_data->{'handle'}->push_write("$msgs_str\n");
-        $client_data->{'buffers'} = [];
+
+        $clients->{$SID}{'handle'}->push_write("$msgs_str\n");
+        $buffers->{$SID} = [];
     }
 }
 
@@ -482,10 +487,7 @@ sub clients {
 sub register_client {
     my ( $self, $SID, $handle ) = @_;
 
-    $self->clients->{$SID} = {
-        buffers => [],
-        handle  => $handle,
-    };
+    $self->clients->{$SID} = { handle => $handle };
 }
 
 sub dispatch_message {
@@ -501,13 +503,14 @@ sub dispatch_messages {
 sub _dispatch_messages {
     my ( $self, $msgs ) = @_;
 
-    my $clients    = $self->clients;
+    my $clients    = $self->{'clients'};
+    my $buffers    = $self->{'buffers'};
     my $dispatched = 0;
     my $bytes      = 0;
 
     # Handle fullfeeds
     foreach my $SID ( keys %{$clients} ) {
-        push @{ $clients->{$SID}{'buffers'} }, @{$msgs};
+        push @{ $buffers->{$SID} }, @{$msgs};
         $dispatched += scalar @{$msgs};
         $bytes      += length $_ for @{$msgs};
     }
@@ -528,7 +531,7 @@ sub _dispatch_messages {
                     exists $clients->{$SID}{'subscription'}{$program}
                         or next;
 
-                    push @{ $clients->{$SID}{'buffers'} }, $msg;
+                    push @{ $buffers->{$SID} }, $msg;
                     $dispatched++;
                     $bytes += length $msg;
                 }
@@ -543,7 +546,7 @@ sub _dispatch_messages {
                         exists $clients->{$SID}{'match'}{$word}
                             or next;
 
-                        push @{ $clients->{$SID}{'buffers'} }, $msg;
+                        push @{ $buffers->{$SID} }, $msg;
                         $dispatched++;
                         $bytes += length $msg;
                     }
@@ -558,7 +561,7 @@ sub _dispatch_messages {
                 foreach my $re ( keys %{ $clients->{$SID}{'regex'} } ) {
                     if ( $hit{$re} || $msg =~ /$re/ ) {
                         $hit{$re} = 1;
-                        push @{ $clients->{$SID}{'buffers'} }, $msg;
+                        push @{ $buffers->{$SID} }, $msg;
                         $dispatched++;
                         $bytes += length $msg;
                     }

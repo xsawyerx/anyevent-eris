@@ -29,9 +29,9 @@ my $c = tcp_connect $addr, $port, sub {
 
 my $timer; $timer = AE::timer 0.2, 0, sub {
     undef $timer;
-    push @{ $server->clients->{$SID}{'buffers'} }, $buffer_msg;
+    push @{ $server->{'buffers'}{$SID} }, $buffer_msg;
 };
 
 is( $server->run($cv), 'OK', 'Server closed' );
 ok( $buffer_said_hi, 'Buffer was flushed (flush_client)' );
-is_deeply( $server->clients->{$SID}{'buffers'}, [], 'Buffers were emptied' );
+is_deeply( $server->{'buffers'}{$SID}, [], 'Buffers were emptied' );
