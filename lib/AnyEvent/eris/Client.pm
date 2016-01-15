@@ -103,7 +103,7 @@ sub setup_pipe {
     # Parse for Subscriptions or Matches
     my %data;
     foreach my $target (qw(Subscribe Match)) {
-        if ( exists $self->{$target} && defined $self->{$target} ) {
+        if ( defined $self->{$target} ) {
             my @data = ref $self->{$target} eq 'ARRAY'
                      ? @{ $self->{$target} }
                      : $self->{$target};
