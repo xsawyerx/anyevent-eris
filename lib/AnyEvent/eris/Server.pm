@@ -209,10 +209,8 @@ sub handle_status {
             $clients->{$SID}{$stream}
                 and $stream_count++;
 
-            my $assist = $_STREAM_ASSISTERS{$stream}
-                or next;
-
-            $assist_count += scalar keys %{ $self->{$assist} || {} };
+            my $assist; $assist = $_STREAM_ASSISTERS{$stream}
+                and $assist_count += scalar keys %{ $self->{$assist} || {} };
         }
 
         $stream_count == 0
