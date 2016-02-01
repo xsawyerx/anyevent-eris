@@ -1,0 +1,8 @@
+# DESCRIPTION
+
+[POE::Component::Client::eris](https://metacpan.org/pod/POE::Component::Client::eris) and [POE::Component::Server::eris](https://metacpan.org/pod/POE::Component::Server::eris)
+are [POE](https://metacpan.org/pod/POE)-based client and server of a pub/sub protocol. This is
+the [AnyEvent](https://metacpan.org/pod/AnyEvent) mostly-honest port of it.
+
+You can read more (well, actually, barely anything at all) at
+[AnyEvent::eris::Client](https://metacpan.org/pod/AnyEvent::eris::Client) and [AnyEvent::eris::Server](https://metacpan.org/pod/AnyEvent::eris::Server).
