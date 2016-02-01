@@ -1,4 +1,6 @@
 package AnyEvent::eris::Server;
+# ABSTRACT: eris pub/sub Server
+
 use strict;
 use warnings;
 use Scalar::Util;
@@ -583,3 +585,20 @@ sub _session_id {
 }
 
 1;
+
+__END__
+
+=pod
+
+=head1 DESCRIPTION
+
+L<AnyEvent::eris::Server> is an L<AnyEvent> version of
+L<POE::Component::Server::eris> - a simple pub/sub implementation,
+written by Brad Lhotsky.
+
+Since I don't actually have any use for it right now, it's not
+actively maintained. Might as well release it. If you're interested in
+taking over it, just let me know.
+
+For now the documentation is sparse but the tests should be clear
+enough to assist in understanding it.

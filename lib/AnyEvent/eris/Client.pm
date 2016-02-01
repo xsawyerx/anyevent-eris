@@ -1,4 +1,6 @@
 package AnyEvent::eris::Client;
+# ABSTRACT: eris pub/sub Client
+
 use strict;
 use warnings;
 use Carp;
@@ -49,8 +51,10 @@ sub _connect {
     my ( $addr, $port ) = @{$self}{qw<RemoteAddress RemotePort>};
 
     # FIXME: TODO item for this
+    #        in second thought, this should just be removed because
+    #        it's meant for internal manual buffering, which we don't need
     $block
-        and AE::log fatal => 'Block option not supported yet';
+        and AE::log fatal => 'Block option not supported';
 
     Scalar::Util::weaken( my $inner_self = $self );
 
@@ -174,3 +178,20 @@ sub handle_message {
 }
 
 1;
+
+__END__
+
+=pod
+
+=head1 DESCRIPTION
+
+L<AnyEvent::eris::Client> is an L<AnyEvent> version of
+L<POE::Component::Client::eris> - a simple pub/sub implementation,
+written by Brad Lhotsky.
+
+Since I don't actually have any use for it right now, it's not
+actively maintained. Might as well release it. If you're interested in
+taking over it, just let me know.
+
+For now the documentation is sparse but the tests should be clear
+enough to assist in understanding it.
